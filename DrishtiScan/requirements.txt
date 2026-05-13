@@ -1,0 +1,37 @@
+# =============================================================================
+# CropScan — JaivikDrishti AI
+# Local Requirements (API + Inference only — Training is done in Google Colab)
+#
+# Install:
+#     pip install -r requirements.txt
+#
+# Python 3.9 / 3.10 / 3.11 recommended
+# Windows users: run in venv with  python -m venv venv
+# =============================================================================
+
+# ── Web Framework ─────────────────────────────────────────────────────────────
+fastapi==0.103.2
+uvicorn[standard]==0.23.2
+python-multipart==0.0.6
+pydantic==2.4.2
+
+# ── Image Processing ──────────────────────────────────────────────────────────
+# Pillow: use >= 9.0.0 (no exact pin — lets pip pick a compatible build for your OS/Python)
+Pillow>=9.0.0
+numpy>=1.23.0,<2.0.0
+
+# ── TensorFlow CPU (inference only — no GPU needed locally) ──────────────────
+# tensorflow-cpu works on Windows / macOS / Linux without CUDA drivers
+tensorflow-cpu==2.15.0
+keras==2.15.0
+
+# ── Grad-CAM visualization ────────────────────────────────────────────────────
+matplotlib>=3.6.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0
+aiofiles>=23.1.0
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest>=7.4.0
+httpx>=0.24.0

@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 min-h-screen text-gray-800;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-700 text-white px-6 py-3 rounded-xl font-semibold 
+           shadow-lg shadow-green-200 active:scale-95 transition-transform
+           hover:bg-primary-900 focus:ring-4 focus:ring-green-200;
+  }
+  
+  .btn-accent {
+    @apply bg-accent-500 text-white px-6 py-3 rounded-xl font-semibold 
+           shadow-lg shadow-yellow-200 active:scale-95 transition-transform
+           hover:bg-accent-600 focus:ring-4 focus:ring-yellow-200;
+  }
+  
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md border border-white/50 rounded-2xl shadow-lg;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-700 to-secondary-500 bg-clip-text text-transparent;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-green-50;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-primary-700 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary-900;
+}
