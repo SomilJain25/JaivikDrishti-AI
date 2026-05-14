@@ -248,7 +248,7 @@ DEFAULT_TREATMENT = (
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 IMAGE_SIZE = (224, 224)
-MODEL_PATH = "model/drishtiscan_model.h5"
+MODEL_PATH = "model/drishtiscan_model.keras"
 CLASS_LABELS_PATH = "model/class_labels.json"
 CONFIDENCE_THRESHOLD = 0.4  # Below this, result is flagged as uncertain
 
@@ -270,7 +270,7 @@ class CropScanPredictor:
         Initialize predictor by loading model and class labels.
         
         Args:
-            model_path: Path to the saved .h5 model
+            model_path: Path to the saved .keras model
             labels_path: Path to the class_labels.json file
         """
         os.makedirs("logs", exist_ok=True)
