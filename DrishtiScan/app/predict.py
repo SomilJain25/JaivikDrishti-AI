@@ -278,12 +278,15 @@ class CropScanPredictor:
         self.class_labels = {}
         self.num_classes = 0
 
+        # Optimize for CPU inference (before model loads)
+        try:
+            tf.config.threading.set_intra_op_parallelism_threads(4)
+            tf.config.threading.set_inter_op_parallelism_threads(4)
+        except RuntimeError as e:
+            logger.warning(f"Could not configure threading after initialization: {e}")
+
         self._load_model(model_path)
         self._load_class_labels(labels_path)
-
-        # Optimize for CPU inference
-        tf.config.threading.set_intra_op_parallelism_threads(4)
-        tf.config.threading.set_inter_op_parallelism_threads(4)
 
         logger.info("CropScanPredictor initialized successfully")
 
@@ -609,7 +612,7 @@ if __name__ == "__main__":
     result = predictor.predict(image_path)
 
     print("\n" + "=" * 60)
-    print("🌿 CropScan — Disease Detection Result")
+    print("CropScan - Disease Detection Result")
     print("=" * 60)
     print(f"Status     : {result['status']}")
     if result["status"] == "success":

@@ -12,7 +12,7 @@ import {
   X
 } from 'lucide-react'
 import { useLanguage } from '../context/LanguageContext'
-import { detectDisease } from '../services/api'
+import { detectDisease, detectDiseaseWithGradcam } from '../services/api'
 
 export default function CropScan() {
   const { lang, t } = useLanguage()
@@ -20,6 +20,7 @@ export default function CropScan() {
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
+  const [gradcamLoading, setGradcamLoading] = useState(false)
   const fileInputRef = useRef(null)
   
   const handleImageSelect = (e) => {
@@ -41,6 +42,19 @@ export default function CropScan() {
       alert('Analysis failed. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleAnalyzeWithGradcam = async () => {
+    if (!selectedImage) return
+    setGradcamLoading(true)
+    try {
+      const data = await detectDiseaseWithGradcam(selectedImage)
+      setResult(data)
+    } catch (error) {
+      alert('Grad-CAM analysis failed. Please try again.')
+    } finally {
+      setGradcamLoading(false)
     }
   }
   
@@ -83,6 +97,11 @@ export default function CropScan() {
               <p className="text-sm text-gray-500 mb-4">
                 {lang === 'en' ? 'Click to upload or drag and drop' : 'अपलोड करने के लिए क्लिक करें'}
               </p>
+              <div className="mb-4 rounded-2xl bg-green-50 border border-green-100 p-4 text-sm text-green-700">
+                {lang === 'en'
+                  ? 'Supported crops: Apple, Blueberry, Cherry, Corn, and Grape.'
+                  : 'समर्थित फसलें: सेब, ब्लूबेरी, चेरी, मक्का और अंगूर।'}
+              </div>
               <button className="btn-primary">
                 <Upload className="w-4 h-4 inline mr-2" />
                 {t.uploadImage}
@@ -110,25 +129,41 @@ export default function CropScan() {
               />
               
               {!result && !loading && (
-                <button 
-                  onClick={handleAnalyze}
-                  className="w-full btn-primary flex items-center justify-center gap-2"
-                >
-                  <Scan className="w-5 h-5" />
-                  {lang === 'en' ? 'Analyze with AI' : 'एआई से विश्लेषण करें'}
-                </button>
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={handleAnalyze}
+                    className="w-full btn-primary flex items-center justify-center gap-2"
+                  >
+                    <Scan className="w-5 h-5" />
+                    {lang === 'en' ? 'Analyze with AI' : 'एआई से विश्लेषण करें'}
+                  </button>
+                  <button
+                    onClick={handleAnalyzeWithGradcam}
+                    className="w-full btn-secondary flex items-center justify-center gap-2"
+                    disabled={gradcamLoading}
+                  >
+                    <Scan className="w-5 h-5" />
+                    {lang === 'en' ? 'Analyze with Grad-CAM' : 'ग्रैड-CAM के साथ विश्लेषण करें'}
+                  </button>
+                </div>
               )}
             </div>
           )}
         </div>
         
         {/* Loading State */}
-        {loading && (
+        {(loading || gradcamLoading) && (
           <div className="glass-card p-8 text-center animate-fade-in">
             <Loader2 className="w-12 h-12 text-primary-700 animate-spin mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-800 mb-2">{t.analyzing}</h3>
             <p className="text-sm text-gray-500">
-              {lang === 'en' ? 'Our AI is examining your crop image...' : 'हमारा एआई आपकी फसल की तस्वीर की जांच कर रहा है...'}
+              {lang === 'en'
+                ? gradcamLoading
+                  ? 'Generating Grad-CAM heatmap...'
+                  : 'Our AI is examining your crop image...'
+                : gradcamLoading
+                  ? 'ग्रैड-CAM हीटमैप बना रहा है...'
+                  : 'हमारा एआई आपकी फसल की तस्वीर की जांच कर रहा है...'}
             </p>
             <div className="mt-4 h-2 bg-gray-200 rounded-full overflow-hidden max-w-xs mx-auto">
               <div className="h-full bg-primary-700 rounded-full animate-pulse w-3/4" />
@@ -154,71 +189,103 @@ export default function CropScan() {
                   <p className="text-sm text-gray-500 mb-3">
                     {lang === 'en' ? 'Severity' : 'गंभीरता'}: <span className="font-medium text-orange-600">{result.severity}</span>
                   </p>
-                  
-                  {/* Confidence Meter */}
-                  <div className="mb-2">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">{t.confidence}</span>
-                      <span className="font-bold text-primary-700">{result.confidence}%</span>
+                  {result.isUncertain && (
+                    <div className="rounded-xl bg-yellow-50 border border-yellow-200 p-4 text-sm text-yellow-900">
+                      {result.uncertaintyWarning ? (
+                        result.uncertaintyWarning
+                      ) : (
+                        lang === 'en'
+                          ? 'Low confidence prediction — the image may be outside the trained crop set or from an unsupported crop like potato.'
+                          : 'कम विश्वसनीयता पूर्वानुमान — छवि प्रशिक्षित फसल सेट के बाहर हो सकती है या आलू जैसे असमर्थित फ़सल की हो सकती है।'
+                      )}
                     </div>
-                    <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all duration-1000"
-                        style={{ width: `${result.confidence}%` }}
-                      />
-                    </div>
-                  </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Confidence Meter */}
+              <div className="mt-6">
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-600">{t.confidence}</span>
+                  <span className="font-bold text-primary-700">{result.confidence}%</span>
+                </div>
+                <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all duration-1000"
+                    style={{ width: `${result.confidence}%` }}
+                  />
                 </div>
               </div>
             </div>
+
+            {/* Grad-CAM Heatmap */}
+            {result.gradcamImage && (
+              <div className="glass-card p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <Leaf className="w-5 h-5 text-green-600" />
+                  {lang === 'en' ? 'Grad-CAM Heatmap' : 'ग्रैड-CAM हीटमैप'}
+                </h3>
+                <img
+                  src={`data:image/png;base64,${result.gradcamImage}`}
+                  alt="Grad-CAM heatmap"
+                  className="w-full rounded-2xl border border-gray-200"
+                />
+              </div>
+            )}
             
             {/* Treatment */}
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Leaf className="w-5 h-5 text-green-600" />
-                {t.treatment}
-              </h3>
-              <ul className="space-y-3">
-                {result.treatment.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-3 p-3 bg-green-50 rounded-xl">
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700 text-sm">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {result.treatment?.length > 0 && (
+              <div className="glass-card p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <Leaf className="w-5 h-5 text-green-600" />
+                  {t.treatment}
+                </h3>
+                <ul className="space-y-3">
+                  {result.treatment.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-3 p-3 bg-green-50 rounded-xl">
+                      <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span className="text-gray-700 text-sm">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             
             {/* Organic Treatment */}
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Droplets className="w-5 h-5 text-teal-600" />
-                {t.organicTreatment}
-              </h3>
-              <ul className="space-y-3">
-                {result.organicTreatment.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-3 p-3 bg-teal-50 rounded-xl">
-                    <Leaf className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700 text-sm">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {result.organicTreatment?.length > 0 && (
+              <div className="glass-card p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <Droplets className="w-5 h-5 text-teal-600" />
+                  {t.organicTreatment}
+                </h3>
+                <ul className="space-y-3">
+                  {result.organicTreatment.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-3 p-3 bg-teal-50 rounded-xl">
+                      <Leaf className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" />
+                      <span className="text-gray-700 text-sm">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             
             {/* Prevention */}
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-blue-600" />
-                {t.prevention}
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {result.prevention.map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
-                    <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700 text-sm">{item}</span>
-                  </div>
-                ))}
+            {result.prevention?.length > 0 && (
+              <div className="glass-card p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-blue-600" />
+                  {t.prevention}
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {result.prevention.map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl">
+                      <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <span className="text-gray-700 text-sm">{item}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>

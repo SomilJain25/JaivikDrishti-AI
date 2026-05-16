@@ -40,9 +40,9 @@ from .predict import CropScanPredictor, TREATMENT_DATABASE
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
     handlers=[
-        logging.FileHandler("logs/api.log"),
+        logging.FileHandler("logs/api.log", encoding="utf-8"),
         logging.StreamHandler()
     ]
 )
@@ -86,11 +86,11 @@ async def startup_event():
     logger.info("Starting CropScan API...")
     try:
         predictor = CropScanPredictor()
-        logger.info("✅ Model loaded and ready")
+        logger.info("Model loaded and ready")
     except Exception as e:
-        logger.warning(f"⚠️ Model loading warning: {e}")
-        logger.warning("API will start but predictions require a trained model.")
-        predictor = CropScanPredictor()  # Will start without model, still serves other endpoints
+        logger.warning(f"Model loading warning: {e}")
+        logger.warning("API will start, but predictions require a trained model.")
+        predictor = None
 
 
 # ─── Request/Response Models ──────────────────────────────────────────────────
@@ -98,15 +98,15 @@ async def startup_event():
 class PredictionResponse(BaseModel):
     """Standard prediction response schema."""
     status: str                    # "success" or "error"
-    disease: Optional[str]         # e.g., "Tomato___Early_blight"
-    confidence: Optional[float]    # 0.0 to 1.0
-    confidence_percent: Optional[str]  # e.g., "94.3%"
-    treatment: Optional[str]       # Detailed treatment advice
-    is_uncertain: Optional[bool]   # True if confidence < threshold
-    uncertainty_warning: Optional[str]
-    top_predictions: Optional[list]
-    processing_time_ms: Optional[float]
-    error: Optional[str]
+    disease: Optional[str] = None         # e.g., "Tomato___Early_blight"
+    confidence: Optional[float] = None    # 0.0 to 1.0
+    confidence_percent: Optional[str] = None  # e.g., "94.3%"
+    treatment: Optional[str] = None       # Detailed treatment advice
+    is_uncertain: Optional[bool] = None   # True if confidence < threshold
+    uncertainty_warning: Optional[str] = None
+    top_predictions: Optional[list] = None
+    processing_time_ms: Optional[float] = None
+    error: Optional[str] = None
 
 class HealthResponse(BaseModel):
     """Health check response."""

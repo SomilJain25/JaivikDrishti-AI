@@ -47,6 +47,8 @@ export const detectDisease = async (imageFile) => {
     isUncertain: data.is_uncertain,
     uncertaintyWarning: data.uncertainty_warning,
     treatment: parseTreatment(data.treatment),      // split into array if string
+    organicTreatment: parseTreatment(data.organic_treatment),
+    prevention: parseTreatment(data.prevention),
     topPredictions: data.top_predictions || [],
     processingTimeMs: data.processing_time_ms,
   };
@@ -76,7 +78,10 @@ export const detectDiseaseWithGradcam = async (imageFile) => {
     confidencePercent: data.confidence_percent,
     severity: getSeverity(data.confidence),
     isUncertain: data.is_uncertain,
+    uncertaintyWarning: data.uncertainty_warning,
     treatment: parseTreatment(data.treatment),
+    organicTreatment: parseTreatment(data.organic_treatment),
+    prevention: parseTreatment(data.prevention),
     topPredictions: data.top_predictions || [],
     gradcamImage: data.gradcam_image,               // base64 PNG heatmap
     processingTimeMs: data.processing_time_ms,
