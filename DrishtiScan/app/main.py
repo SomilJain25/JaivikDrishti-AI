@@ -25,7 +25,7 @@ import sys
 import io
 import logging
 import time
-from typing import Optional
+from typing import Optional, List, Dict
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -104,9 +104,13 @@ class PredictionResponse(BaseModel):
     treatment: Optional[str] = None       # Detailed treatment advice
     is_uncertain: Optional[bool] = None   # True if confidence < threshold
     uncertainty_warning: Optional[str] = None
-    top_predictions: Optional[list] = None
+    top_predictions: Optional[List[Dict[str, float]]] = None
     processing_time_ms: Optional[float] = None
     error: Optional[str] = None
+
+    model_config = {
+        'extra': 'ignore'
+    }
 
 class HealthResponse(BaseModel):
     """Health check response."""
@@ -230,6 +234,8 @@ async def predict_disease(
         raise HTTPException(status_code=503, detail="Predictor not initialized")
 
     result = predictor.predict(image_bytes)
+    if "error" not in result:
+        result["error"] = None
 
     # ── Add processing time ──────────────────────────────────────────────────
     result["processing_time_ms"] = round((time.time() - start_time) * 1000, 2)
@@ -279,6 +285,8 @@ async def predict_with_gradcam(
         raise HTTPException(status_code=503, detail="Predictor not initialized")
 
     result = predictor.predict_with_gradcam(image_bytes)
+    if "error" not in result:
+        result["error"] = None
     result["processing_time_ms"] = round((time.time() - start_time) * 1000, 2)
 
     if result["status"] == "error":

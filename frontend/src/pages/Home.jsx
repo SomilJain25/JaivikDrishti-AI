@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react'
 import { useLanguage } from '../context/LanguageContext'
 import { 
   Scan, 
@@ -13,6 +14,15 @@ import {
 import ModuleCard from '../components/ModuleCard'
 import WeatherWidget from '../components/WeatherWidget'
 import GovtSchemes from '../components/GovtSchemes'
+
+const wallpapers = [
+  new URL('../assets/wallpaper 1.webp', import.meta.url).href,
+  new URL('../assets/wallpaper 2.jpg', import.meta.url).href,
+  new URL('../assets/wallpaper 3.jpg', import.meta.url).href,
+  new URL('../assets/wallpaper 4.png', import.meta.url).href,
+]
+
+const clampIndex = (index) => (index + wallpapers.length) % wallpapers.length
 
 const farmingTips = [
   { icon: Sprout, text: 'Rotate crops annually to maintain soil fertility', textHi: 'मिट्टी की उर्वरता बनाए रखने के लिए हर साल फसल बदलें' },
@@ -30,7 +40,42 @@ const stats = [
 
 export default function Home() {
   const { lang, t } = useLanguage()
-  
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const touchStartX = useRef(null)
+  const touchEndX = useRef(null)
+
+  const nextSlide = () => setCurrentSlide((prev) => clampIndex(prev + 1))
+  const previousSlide = () => setCurrentSlide((prev) => clampIndex(prev - 1))
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => clampIndex(prev + 1))
+    }, 4000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleTouchStart = (event) => {
+    touchStartX.current = event.touches[0]?.clientX ?? null
+  }
+
+  const handleTouchMove = (event) => {
+    touchEndX.current = event.touches[0]?.clientX ?? null
+  }
+
+  const handleTouchEnd = () => {
+    if (touchStartX.current === null || touchEndX.current === null) return
+    const delta = touchEndX.current - touchStartX.current
+    if (Math.abs(delta) < 50) return
+    if (delta < 0) {
+      nextSlide()
+    } else {
+      previousSlide()
+    }
+    touchStartX.current = null
+    touchEndX.current = null
+  }
+
   const modules = [
     {
       title: 'CropScan',
@@ -67,20 +112,38 @@ export default function Home() {
   ]
   
   return (
-    <div className="min-h-screen pb-12">
+    <div className="min-h-screen pb-12 bg-slate-50">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 text-white">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-32 h-32 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-48 h-48 bg-accent-400 rounded-full blur-3xl" />
+      <section
+        className="relative overflow-hidden text-white"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="absolute inset-0">
+          {wallpapers.map((src, index) => (
+            <div
+              key={src}
+              className={`absolute inset-0 transition-opacity duration-700 ease-out ${
+                index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
+              }`}
+              style={{
+                backgroundImage: `url(${src})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+          ))}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-slate-950/10 to-transparent backdrop-blur-sm" />
         </div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24">
-          <div className="text-center max-w-3xl mx-auto animate-slide-up">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6 border border-white/20">
-              <Sprout className="w-5 h-5 text-accent-400" />
-              <span className="text-sm font-medium">{t.welcome}</span>
-            </div>
+
+        <div className="relative z-20 max-w-7xl mx-auto px-4 py-16 md:py-24">
+          <div className="relative mx-auto max-w-3xl animate-slide-up rounded-[2rem] border border-white/10 bg-white/10 p-10 shadow-2xl shadow-slate-950/10 backdrop-blur-xl">
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6 border border-white/20">
+                <Sprout className="w-5 h-5 text-accent-400" />
+                <span className="text-sm font-medium">{t.welcome}</span>
+              </div>
             
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
               {t.appName}
@@ -105,11 +168,12 @@ export default function Home() {
             </div>
           </div>
         </div>
+      </div>
         
         {/* Wave divider */}
         <div className="absolute bottom-0 left-0 right-0">
           <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="#f0fdf4"/>
+            <path d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="#ffffff"/>
           </svg>
         </div>
       </section>

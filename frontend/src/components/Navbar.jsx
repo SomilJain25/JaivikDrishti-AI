@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { 
-  Sprout, 
   Menu, 
   X, 
   Scan, 
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useLanguage } from '../context/LanguageContext'
 import LanguageToggle from './LanguageToggle'
+import logo from '../assets/JaivikDrishti_circular.png'
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -34,9 +34,8 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center 
-                          group-hover:scale-110 transition-transform">
-              <Sprout className="w-6 h-6 text-primary-700" />
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-white flex items-center justify-center group-hover:scale-110 transition-transform">
+              <img src={logo} alt="JaivikDrishti logo" className="w-full h-full object-cover" />
             </div>
             <div className="hidden sm:block">
               <h1 className="text-white font-bold text-lg leading-tight">JaivikDrishti</h1>

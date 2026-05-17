@@ -1,15 +1,15 @@
 import { useState, useRef } from 'react'
-import { 
-  Upload, 
-  Camera, 
-  Scan, 
-  CheckCircle, 
-  AlertTriangle, 
+import {
+  Upload,
+  Camera,
+  Scan,
+  CheckCircle,
+  AlertTriangle,
   Leaf,
   Droplets,
   Shield,
   Loader2,
-  X
+  X,
 } from 'lucide-react'
 import { useLanguage } from '../context/LanguageContext'
 import { detectDisease, detectDiseaseWithGradcam } from '../services/api'
@@ -19,74 +19,62 @@ export default function CropScan() {
   const [selectedImage, setSelectedImage] = useState(null)
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
   const [gradcamLoading, setGradcamLoading] = useState(false)
+  const [result, setResult] = useState(null)
   const fileInputRef = useRef(null)
-  
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      setSelectedImage(file)
-      setPreview(URL.createObjectURL(file))
-      setResult(null)
-    }
-  }
-  
-  const handleAnalyze = async () => {
-    if (!selectedImage) return
-    setLoading(true)
-    try {
-      const data = await detectDisease(selectedImage)
-      setResult(data)
-    } catch (error) {
-      alert('Analysis failed. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+
+  const handleImageSelect = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setSelectedImage(file)
+    setPreview(URL.createObjectURL(file))
+    setResult(null)
   }
 
-  const handleAnalyzeWithGradcam = async () => {
-    if (!selectedImage) return
-    setGradcamLoading(true)
-    try {
-      const data = await detectDiseaseWithGradcam(selectedImage)
-      setResult(data)
-    } catch (error) {
-      alert('Grad-CAM analysis failed. Please try again.')
-    } finally {
-      setGradcamLoading(false)
-    }
-  }
-  
   const clearImage = () => {
     setSelectedImage(null)
     setPreview(null)
     setResult(null)
   }
-  
+
+  const analyze = async (useGradcam = false) => {
+    if (!selectedImage) return
+    if (useGradcam) setGradcamLoading(true)
+    else setLoading(true)
+
+    try {
+      const data = useGradcam
+        ? await detectDiseaseWithGradcam(selectedImage)
+        : await detectDisease(selectedImage)
+      setResult(data)
+    } catch (error) {
+      alert('Analysis failed. Please try again.')
+    } finally {
+      setLoading(false)
+      setGradcamLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen pb-12 px-4">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="text-center py-8 animate-slide-up">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-2xl mb-4 shadow-lg">
             <Scan className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">CropScan</h1>
           <p className="text-gray-600">
-            {lang === 'en' 
-              ? 'AI-powered crop disease detection' 
+            {lang === 'en'
+              ? 'AI-powered crop disease detection'
               : 'एआई-संचालित फसल रोग पहचान'}
           </p>
         </div>
-        
-        {/* Upload Area */}
+
         <div className="glass-card p-6 md:p-8 mb-6">
           {!preview ? (
-            <div 
+            <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-3 border-dashed border-green-300 rounded-2xl p-8 md:p-12 text-center cursor-pointer
-                       hover:border-green-500 hover:bg-green-50/50 transition-all group"
+              className="border-3 border-dashed border-green-300 rounded-2xl p-8 md:p-12 text-center cursor-pointer hover:border-green-500 hover:bg-green-50/50 transition-all group"
             >
               <div className="w-20 h-20 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                 <Camera className="w-10 h-10 text-primary-700" />
@@ -95,7 +83,9 @@ export default function CropScan() {
                 {lang === 'en' ? 'Upload Crop Image' : 'फसल की तस्वीर अपलोड करें'}
               </h3>
               <p className="text-sm text-gray-500 mb-4">
-                {lang === 'en' ? 'Click to upload or drag and drop' : 'अपलोड करने के लिए क्लिक करें'}
+                {lang === 'en'
+                  ? 'Click to upload or drag and drop'
+                  : 'अपलोड करने के लिए क्लिक करें'}
               </p>
               <div className="mb-4 rounded-2xl bg-green-50 border border-green-100 p-4 text-sm text-green-700">
                 {lang === 'en'
@@ -106,41 +96,39 @@ export default function CropScan() {
                 <Upload className="w-4 h-4 inline mr-2" />
                 {t.uploadImage}
               </button>
-              <input 
+              <input
                 ref={fileInputRef}
-                type="file" 
-                accept="image/*" 
+                type="file"
+                accept="image/*"
                 onChange={handleImageSelect}
                 className="hidden"
               />
             </div>
           ) : (
             <div className="relative">
-              <button 
+              <button
                 onClick={clearImage}
                 className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
               >
                 <X className="w-4 h-4" />
               </button>
-              <img 
-                src={preview} 
-                alt="Preview" 
+              <img
+                src={preview}
+                alt="Preview"
                 className="w-full max-h-96 object-contain rounded-xl mb-4 bg-gray-100"
               />
-              
-              {!result && !loading && (
+              {!result && !loading && !gradcamLoading && (
                 <div className="flex flex-col gap-3">
-                  <button 
-                    onClick={handleAnalyze}
+                  <button
+                    onClick={() => analyze(false)}
                     className="w-full btn-primary flex items-center justify-center gap-2"
                   >
                     <Scan className="w-5 h-5" />
                     {lang === 'en' ? 'Analyze with AI' : 'एआई से विश्लेषण करें'}
                   </button>
                   <button
-                    onClick={handleAnalyzeWithGradcam}
+                    onClick={() => analyze(true)}
                     className="w-full btn-secondary flex items-center justify-center gap-2"
-                    disabled={gradcamLoading}
                   >
                     <Scan className="w-5 h-5" />
                     {lang === 'en' ? 'Analyze with Grad-CAM' : 'ग्रैड-CAM के साथ विश्लेषण करें'}
@@ -150,8 +138,7 @@ export default function CropScan() {
             </div>
           )}
         </div>
-        
-        {/* Loading State */}
+
         {(loading || gradcamLoading) && (
           <div className="glass-card p-8 text-center animate-fade-in">
             <Loader2 className="w-12 h-12 text-primary-700 animate-spin mx-auto mb-4" />
@@ -162,19 +149,17 @@ export default function CropScan() {
                   ? 'Generating Grad-CAM heatmap...'
                   : 'Our AI is examining your crop image...'
                 : gradcamLoading
-                  ? 'ग्रैड-CAM हीटमैप बना रहा है...'
-                  : 'हमारा एआई आपकी फसल की तस्वीर की जांच कर रहा है...'}
+                ? 'ग्रैड-CAM हीटमैप बना रहा है...'
+                : 'हमारा एआई आपकी फसल की तस्वीर की जांच कर रहा है...'}
             </p>
             <div className="mt-4 h-2 bg-gray-200 rounded-full overflow-hidden max-w-xs mx-auto">
               <div className="h-full bg-primary-700 rounded-full animate-pulse w-3/4" />
             </div>
           </div>
         )}
-        
-        {/* Results */}
+
         {result && (
           <div className="space-y-6 animate-slide-up">
-            {/* Main Result Card */}
             <div className="glass-card p-6 border-l-4 border-green-500">
               <div className="flex items-start gap-4">
                 <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center flex-shrink-0">
@@ -191,19 +176,15 @@ export default function CropScan() {
                   </p>
                   {result.isUncertain && (
                     <div className="rounded-xl bg-yellow-50 border border-yellow-200 p-4 text-sm text-yellow-900">
-                      {result.uncertaintyWarning ? (
-                        result.uncertaintyWarning
-                      ) : (
-                        lang === 'en'
+                      {result.uncertaintyWarning ||
+                        (lang === 'en'
                           ? 'Low confidence prediction — the image may be outside the trained crop set or from an unsupported crop like potato.'
-                          : 'कम विश्वसनीयता पूर्वानुमान — छवि प्रशिक्षित फसल सेट के बाहर हो सकती है या आलू जैसे असमर्थित फ़सल की हो सकती है।'
-                      )}
+                          : 'कम विश्वसनीयता पूर्वानुमान — छवि प्रशिक्षित फसल सेट के बाहर हो सकती है या आलू जैसे असमर्थित फ़सल की हो सकती है।')}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Confidence Meter */}
               <div className="mt-6">
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-gray-600">{t.confidence}</span>
@@ -218,7 +199,6 @@ export default function CropScan() {
               </div>
             </div>
 
-            {/* Grad-CAM Heatmap */}
             {result.gradcamImage && (
               <div className="glass-card p-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -232,8 +212,7 @@ export default function CropScan() {
                 />
               </div>
             )}
-            
-            {/* Treatment */}
+
             {result.treatment?.length > 0 && (
               <div className="glass-card p-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -250,8 +229,7 @@ export default function CropScan() {
                 </ul>
               </div>
             )}
-            
-            {/* Organic Treatment */}
+
             {result.organicTreatment?.length > 0 && (
               <div className="glass-card p-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -268,8 +246,7 @@ export default function CropScan() {
                 </ul>
               </div>
             )}
-            
-            {/* Prevention */}
+
             {result.prevention?.length > 0 && (
               <div className="glass-card p-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
