@@ -1,5 +1,5 @@
 
-# 🌾 KrishiDrishti AI
+# 🌾 jaivikDrishti AI
 
 **AI-Powered Agricultural Solutions for Modern Farming**
 
