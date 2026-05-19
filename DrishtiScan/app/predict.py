@@ -24,6 +24,7 @@ from PIL import Image, UnidentifiedImageError
 from typing import Optional
 import io
 
+os.makedirs("logs", exist_ok=True)
 # ─── Logging Setup ────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
