@@ -276,6 +276,10 @@ class CropScanPredictor:
         """
         os.makedirs("logs", exist_ok=True)
         self.model = None
+        self.interpreter = None
+        self.input_details = None
+        self.output_details = None
+        self.model_type = None
         self.class_labels = {}
         self.num_classes = 0
 
@@ -292,48 +296,32 @@ class CropScanPredictor:
         logger.info("CropScanPredictor initialized successfully")
 
     def _load_model(self, model_path: str):
-        """Load the trained Keras model."""
+        """Load the trained model from the given path.
+
+        Supports TFLite models for mobile-friendly deployment.
+        """
         if not os.path.exists(model_path):
-            logger.warning(f"Model not found at {model_path}. Please train first with train.py")
+            logger.warning(f"Model not found at {model_path}. Please convert the model to TFLite first.")
             return
 
         logger.info(f"Loading model from: {model_path}")
         try:
-            # Try loading with safe_mode first
-            self.model = tf.keras.models.load_model(
-                model_path,
-                compile=False,
-                safe_mode=True
-            )
-            logger.info("Model loaded successfully with safe_mode")
+            if model_path.lower().endswith(".tflite"):
+                self.interpreter = tf.lite.Interpreter(model_path=model_path)
+                self.interpreter.allocate_tensors()
+                self.input_details = self.interpreter.get_input_details()
+                self.output_details = self.interpreter.get_output_details()
+                self.model_type = "tflite"
+                logger.info("TFLite model loaded successfully")
+            else:
+                self.model = tf.keras.models.load_model(model_path, compile=False, safe_mode=True)
+                self.model_type = "keras"
+                logger.info("Keras model loaded successfully")
         except Exception as e:
-            logger.warning(f"Safe mode failed: {e}")
-            try:
-                # Fallback: try loading without safe_mode but with custom objects
-                self.model = tf.keras.models.load_model(
-                    model_path,
-                    compile=False,
-                    safe_mode=False,
-                    custom_objects={}
-                )
-                logger.info("Model loaded successfully with fallback method")
-            except Exception as e2:
-                logger.warning(f"Standard loading failed: {e2}")
-                try:
-                    # Last resort: try loading with options to handle InputLayer issues
-                    import h5py
-                    with h5py.File(model_path, 'r') as f:
-                        # Check if we can at least read the file
-                        if 'model_weights' in f:
-                            logger.info("Model file contains weights, attempting custom loading...")
-                            # For now, set model to None and handle gracefully
-                            self.model = None
-                            logger.warning("Model loading deferred - will handle predictions gracefully")
-                        else:
-                            raise Exception("Invalid model file structure")
-                except Exception as e3:
-                    logger.error(f"All model loading methods failed: {e3}")
-                    self.model = None
+            logger.error(f"Model loading failed: {e}")
+            self.model = None
+            self.interpreter = None
+            self.model_type = None
 
     def _load_class_labels(self, labels_path: str):
         """Load class label mapping from JSON file."""
@@ -437,8 +425,33 @@ class CropScanPredictor:
             img_array = self.preprocess_image(image_input)
 
             # ── Step 2: Run Model Inference ─────────────────────────────────
-            predictions = self.model.predict(img_array, verbose=0)
-            probabilities = predictions[0]  # Shape: (num_classes,)
+            if self.model_type == "tflite":
+                input_index = self.input_details[0]["index"]
+                output_index = self.output_details[0]["index"]
+
+                input_dtype = self.input_details[0]["dtype"]
+                input_data = img_array.astype(input_dtype)
+
+                # Handle quantized input if needed
+                input_scale, input_zero_point = self.input_details[0].get("quantization", (0.0, 0))
+                if input_dtype == np.uint8 or input_dtype == np.int8:
+                    if input_scale != 0:
+                        input_data = (img_array / input_scale + input_zero_point).astype(input_dtype)
+                    else:
+                        input_data = (img_array * 255).astype(input_dtype)
+
+                self.interpreter.set_tensor(input_index, input_data)
+                self.interpreter.invoke()
+
+                output_data = self.interpreter.get_tensor(output_index)
+                output_dtype = self.output_details[0]["dtype"]
+                output_scale, output_zero_point = self.output_details[0].get("quantization", (1.0, 0))
+                probabilities = np.squeeze(output_data).astype(np.float32)
+                if output_dtype == np.uint8 or output_dtype == np.int8:
+                    probabilities = output_scale * (probabilities - output_zero_point)
+            else:
+                predictions = self.model.predict(img_array, verbose=0)
+                probabilities = predictions[0]  # Shape: (num_classes,)
 
             # ── Step 3: Get Top-K Predictions ───────────────────────────────
             top_k_indices = np.argsort(probabilities)[::-1][:return_top_k]
@@ -514,7 +527,8 @@ class CropScanPredictor:
         Returns:
             Heatmap as numpy array (224, 224), or None on failure
         """
-        if self.model is None:
+        if self.model is None or self.model_type != "keras":
+            logger.warning("Grad-CAM is only available for Keras model deployments.")
             return None
 
         try:
