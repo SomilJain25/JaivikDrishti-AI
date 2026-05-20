@@ -410,11 +410,11 @@ class CropScanPredictor:
                 - status: "success" or "error"
         """
         # Guard: model not loaded
-        if self.model is None:
+        if self.interpreter is None and self.model is None:
             logger.error("Model not loaded. Cannot make prediction.")
             return {
                 "status": "error",
-                "error": "Model not loaded. Please train the model first.",
+                "error": "Model not loaded.",
                 "disease": None,
                 "confidence": 0.0,
                 "treatment": None
@@ -430,29 +430,44 @@ class CropScanPredictor:
                 output_index = self.output_details[0]["index"]
 
                 input_dtype = self.input_details[0]["dtype"]
-                input_data = img_array.astype(input_dtype)
 
-                # Handle quantized input if needed
-                input_scale, input_zero_point = self.input_details[0].get("quantization", (0.0, 0))
-                if input_dtype == np.uint8 or input_dtype == np.int8:
-                    if input_scale != 0:
-                        input_data = (img_array / input_scale + input_zero_point).astype(input_dtype)
-                    else:
+                # Prepare input tensor
+                if input_dtype == np.float32:
+                    input_data = img_array.astype(np.float32)
+                else:
+                    input_scale, input_zero_point = self.input_details[0]["quantization"]
+
+                    if input_scale == 0:
                         input_data = (img_array * 255).astype(input_dtype)
+                    else:
+                        input_data = (
+                            img_array / input_scale + input_zero_point
+                        ).astype(input_dtype)
 
+                # Run inference
                 self.interpreter.set_tensor(input_index, input_data)
                 self.interpreter.invoke()
 
                 output_data = self.interpreter.get_tensor(output_index)
+
+                # Dequantize output if necessary
                 output_dtype = self.output_details[0]["dtype"]
-                output_scale, output_zero_point = self.output_details[0].get("quantization", (1.0, 0))
-                probabilities = np.squeeze(output_data).astype(np.float32)
-                if output_dtype == np.uint8 or output_dtype == np.int8:
-                    probabilities = output_scale * (probabilities - output_zero_point)
+
+                if output_dtype in [np.uint8, np.int8]:
+                    output_scale, output_zero_point = self.output_details[0]["quantization"]
+                    probabilities = (
+                        output_scale
+                        * (output_data.astype(np.float32) - output_zero_point)
+                    )
+                else:
+                    probabilities = output_data.astype(np.float32)
+
+                probabilities = np.squeeze(probabilities)
+
             else:
                 predictions = self.model.predict(img_array, verbose=0)
-                probabilities = predictions[0]  # Shape: (num_classes,)
-
+                probabilities = predictions[0]
+            
             # ── Step 3: Get Top-K Predictions ───────────────────────────────
             top_k_indices = np.argsort(probabilities)[::-1][:return_top_k]
             top_predictions = [
