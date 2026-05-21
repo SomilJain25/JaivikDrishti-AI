@@ -92,6 +92,9 @@ async def startup_event():
         logger.warning("API will start, but predictions require a trained model.")
         predictor = None
 
+class TopPrediction(BaseModel):
+    disease: str
+    confidence: float
 
 # ─── Request/Response Models ──────────────────────────────────────────────────
 
@@ -104,7 +107,7 @@ class PredictionResponse(BaseModel):
     treatment: Optional[str] = None       # Detailed treatment advice
     is_uncertain: Optional[bool] = None   # True if confidence < threshold
     uncertainty_warning: Optional[str] = None
-    top_predictions: Optional[List[Dict[str, float]]] = None
+    top_predictions: Optional[List[TopPrediction]] = None
     processing_time_ms: Optional[float] = None
     error: Optional[str] = None
 
