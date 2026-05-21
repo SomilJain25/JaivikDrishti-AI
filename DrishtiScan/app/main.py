@@ -9,6 +9,9 @@ import sys
 import logging
 import time
 from typing import Optional, List
+from app.auth import verify_api_key
+from fastapi import Depends
+
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -205,8 +208,11 @@ async def root():
     response_model=PredictionResponse,
     tags=["Prediction"]
 )
+@limiter.limit("30/minute")
 async def predict_disease(
-    file: UploadFile = File(...)
+    request: Request,
+    file: UploadFile = File(...),
+    key: str = Depends(verify_api_key)
 ):
     start_time = time.time()
 
@@ -220,6 +226,7 @@ async def predict_disease(
             status_code=400,
             detail=f"Failed to read file: {str(e)}"
         )
+
 
     if len(image_bytes) == 0:
         raise HTTPException(
@@ -447,3 +454,5 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
+from app.rate_limiter import limiter
+app.state.limiter=limiter
