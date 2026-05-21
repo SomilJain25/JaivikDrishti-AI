@@ -2,42 +2,30 @@
 CropScan - JaivikDrishti AI Module
 ======================================
 FastAPI Backend — REST API for crop disease detection
-
-Endpoints:
-    GET  /            — Health check + API info
-    POST /predict     — Upload leaf image, get disease prediction
-    POST /predict/gradcam — Prediction with Grad-CAM heatmap
-    GET  /diseases    — List all known diseases
-    GET  /treatments/{disease_name} — Get treatment for a specific disease
-
-Run:
-    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-Integration with JaivikDrishti AI platform:
-    This API is designed to be consumed by:
-    - KrishiBot (chatbot): POST /predict
-    - Web dashboard: POST /predict/gradcam
-    - Mobile app: POST /predict
 """
 
 import os
 import sys
-import io
 import logging
 import time
-from typing import Optional, List, Dict
+from typing import Optional, List
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Add parent directory to path so we can import predict.py
+# Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from .predict import CropScanPredictor, TREATMENT_DATABASE
 
-# ─── Logging ──────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────
+# Logging
+# ─────────────────────────────────────────────────────────────
 os.makedirs("logs", exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
@@ -46,28 +34,23 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
 logger = logging.getLogger("CropScan.api")
 
-# ─── FastAPI App Initialization ───────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────
+# FastAPI App
+# ─────────────────────────────────────────────────────────────
 app = FastAPI(
     title="CropScan API",
-    description=(
-        "🌿 AI-powered crop disease detection system — part of JaivikDrishti AI platform. "
-        "Upload a plant leaf image to get disease prediction, confidence score, and treatment advice."
-    ),
+    description="AI-powered crop disease detection system",
     version="1.0.0",
-    contact={
-        "name": "JaivikDrishti AI",
-        "url": "https://JaivikDrishti.ai",
-    },
-    license_info={
-        "name": "MIT",
-    }
 )
 
-# ─── CORS Middleware ──────────────────────────────────────────────────────────
-# Allow all origins for local development
-# In production, replace "*" with your frontend domain
+
+# ─────────────────────────────────────────────────────────────
+# CORS
+# ─────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -76,47 +59,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── Load Predictor (once at startup) ────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────
+# Predictor
+# ─────────────────────────────────────────────────────────────
 predictor: Optional[CropScanPredictor] = None
+
 
 @app.on_event("startup")
 async def startup_event():
-    """Load model when the API starts up."""
     global predictor
+
     logger.info("Starting CropScan API...")
+
     try:
         predictor = CropScanPredictor()
-        logger.info("Model loaded and ready")
+        logger.info("Model loaded successfully")
+
     except Exception as e:
-        logger.warning(f"Model loading warning: {e}")
-        logger.warning("API will start, but predictions require a trained model.")
+        logger.error(f"Failed to load model: {e}")
         predictor = None
+
+
+# ─────────────────────────────────────────────────────────────
+# Pydantic Models
+# ─────────────────────────────────────────────────────────────
 
 class TopPrediction(BaseModel):
     disease: str
     confidence: float
 
-# ─── Request/Response Models ──────────────────────────────────────────────────
 
 class PredictionResponse(BaseModel):
-    """Standard prediction response schema."""
-    status: str                    # "success" or "error"
-    disease: Optional[str] = None         # e.g., "Tomato___Early_blight"
-    confidence: Optional[float] = None    # 0.0 to 1.0
-    confidence_percent: Optional[str] = None  # e.g., "94.3%"
-    treatment: Optional[str] = None       # Detailed treatment advice
-    is_uncertain: Optional[bool] = None   # True if confidence < threshold
+    status: str
+
+    disease: Optional[str] = None
+    confidence: Optional[float] = None
+    confidence_percent: Optional[str] = None
+
+    treatment: Optional[list] = []
+    organic_treatment: Optional[list] = []
+    prevention: Optional[list] = []
+
+    is_uncertain: Optional[bool] = None
     uncertainty_warning: Optional[str] = None
-    top_predictions: Optional[List[TopPrediction]] = None
+
+    top_predictions: List[TopPrediction] = []
+
     processing_time_ms: Optional[float] = None
     error: Optional[str] = None
 
     model_config = {
-        'extra': 'ignore'
+        "extra": "ignore"
     }
 
+
 class HealthResponse(BaseModel):
-    """Health check response."""
     status: str
     service: str
     platform: str
@@ -125,198 +123,246 @@ class HealthResponse(BaseModel):
     endpoints: list
 
 
-# ─── Middleware: Request Timing ────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# Middleware
+# ─────────────────────────────────────────────────────────────
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
-    """Add X-Process-Time header to all responses."""
     start_time = time.time()
+
     response = await call_next(request)
+
     process_time = (time.time() - start_time) * 1000
     response.headers["X-Process-Time-Ms"] = str(round(process_time, 2))
+
     return response
 
 
-# ─── Utility Functions ─────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# Utility
+# ─────────────────────────────────────────────────────────────
+def validate_image_file(file: UploadFile):
 
-def validate_image_file(file: UploadFile) -> None:
-    """
-    Validate uploaded file is a supported image format.
-    
-    Raises:
-        HTTPException: If file type is not supported
-    """
-    ALLOWED_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"}
-    ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    allowed_types = {
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/gif"
+    }
 
-    # Check MIME type
-    if file.content_type and file.content_type not in ALLOWED_TYPES:
+    allowed_extensions = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif"
+    }
+
+    if file.content_type not in allowed_types:
         raise HTTPException(
             status_code=415,
-            detail=f"Unsupported file type: {file.content_type}. "
-                   f"Allowed types: JPEG, PNG, WebP, GIF"
+            detail=f"Unsupported file type: {file.content_type}"
         )
 
-    # Check file extension
-    if file.filename:
-        ext = os.path.splitext(file.filename)[1].lower()
-        if ext not in ALLOWED_EXTENSIONS:
-            raise HTTPException(
-                status_code=415,
-                detail=f"Invalid file extension: {ext}. Allowed: {ALLOWED_EXTENSIONS}"
-            )
+    ext = os.path.splitext(file.filename)[1].lower()
 
-    # Check file size (max 10MB)
-    MAX_SIZE = 10 * 1024 * 1024  # 10MB
-    # Note: We check after reading in the endpoint
+    if ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Invalid file extension: {ext}"
+        )
 
 
-# ─── Endpoints ────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# Routes
+# ─────────────────────────────────────────────────────────────
 
-@app.get("/", response_model=HealthResponse, tags=["Health"])
+@app.get("/", response_model=HealthResponse)
 async def root():
-    """
-    Health check endpoint.
-    Returns API status and available endpoints.
-    """
+
     return {
         "status": "healthy",
         "service": "CropScan",
         "platform": "JaivikDrishti AI",
-        "model_loaded": predictor is not None and predictor.model is not None,
+        "model_loaded": predictor is not None,
         "version": "1.0.0",
         "endpoints": [
-            "POST /predict — Predict disease from leaf image",
-            "POST /predict/gradcam — Predict with Grad-CAM visualization",
-            "GET  /diseases — List all known disease classes",
-            "GET  /treatments/{disease_name} — Get treatment for a disease",
-            "GET  /docs — Swagger UI documentation"
+            "POST /predict",
+            "POST /predict/gradcam",
+            "GET /diseases",
+            "GET /treatments/{disease_name}",
+            "GET /docs"
         ]
     }
 
 
-@app.post("/predict", response_model=PredictionResponse, tags=["Prediction"])
+# ─────────────────────────────────────────────────────────────
+# Predict Disease
+# ─────────────────────────────────────────────────────────────
+@app.post(
+    "/predict",
+    response_model=PredictionResponse,
+    tags=["Prediction"]
+)
 async def predict_disease(
-    file: UploadFile = File(..., description="Plant leaf image (JPG, PNG, WebP)")
+    file: UploadFile = File(...)
 ):
-    """
-    **Main prediction endpoint** — Upload a plant leaf image to detect disease.
-    
-    - **file**: Leaf image file (JPEG, PNG, WebP, max 10MB)
-    
-    Returns:
-    - **disease**: Predicted disease class name
-    - **confidence**: Prediction confidence (0–1)
-    - **treatment**: Detailed treatment recommendation
-    - **top_predictions**: Top 3 possible diseases
-    
-    ---
-    **Used by**: KrishiBot chatbot, mobile app, web dashboard
-    """
     start_time = time.time()
 
-    # ── Validate file ────────────────────────────────────────────────────────
     validate_image_file(file)
 
-    # ── Read file bytes ──────────────────────────────────────────────────────
     try:
         image_bytes = await file.read()
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
 
-    # Check file size
-    if len(image_bytes) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="File too large. Maximum size is 10MB.")
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to read file: {str(e)}"
+        )
 
     if len(image_bytes) == 0:
-        raise HTTPException(status_code=400, detail="Empty file received.")
-
-    # ── Run Prediction ───────────────────────────────────────────────────────
-    logger.info(f"Prediction request: {file.filename} ({len(image_bytes)/1024:.1f}KB)")
+        raise HTTPException(
+            status_code=400,
+            detail="Empty file received"
+        )
 
     if predictor is None:
-        raise HTTPException(status_code=503, detail="Predictor not initialized")
-
-    result = predictor.predict(image_bytes)
-    if "error" not in result:
-        result["error"] = None
-
-    # ── Add processing time ──────────────────────────────────────────────────
-    result["processing_time_ms"] = round((time.time() - start_time) * 1000, 2)
+        raise HTTPException(
+            status_code=503,
+            detail="Predictor not initialized"
+        )
 
     logger.info(
-        f"Result: {result.get('disease')} | "
+        f"Prediction request: "
+        f"{file.filename} "
+        f"({len(image_bytes)/1024:.1f}KB)"
+    )
+
+    result = predictor.predict(image_bytes)
+
+    if not isinstance(result, dict):
+        raise HTTPException(
+            status_code=500,
+            detail="Predictor returned invalid response"
+        )
+
+    # Add processing time
+    result["processing_time_ms"] = round(
+        (time.time() - start_time) * 1000,
+        2
+    )
+
+    # Ensure fields exist
+    result.setdefault("status", "success")
+    result.setdefault("error", None)
+    result.setdefault("top_predictions", [])
+    result.setdefault("treatment", [])
+    result.setdefault("organic_treatment", [])
+    result.setdefault("prevention", [])
+    result.setdefault("is_uncertain", False)
+
+    # FIX TOP PREDICTIONS FORMAT
+    formatted_predictions = []
+
+    for pred in result.get("top_predictions", []):
+
+        if isinstance(pred, dict):
+            formatted_predictions.append({
+                "disease": str(pred.get("disease", "Unknown")),
+                "confidence": float(
+                    pred.get("confidence", 0.0)
+                )
+            })
+
+        elif isinstance(pred, (list, tuple)) and len(pred) == 2:
+            formatted_predictions.append({
+                "disease": str(pred[0]),
+                "confidence": float(pred[1])
+            })
+
+    result["top_predictions"] = formatted_predictions
+
+    logger.info(
+        f"Prediction: {result.get('disease')} | "
         f"Confidence: {result.get('confidence_percent')} | "
         f"Time: {result['processing_time_ms']}ms"
     )
 
-    # ── Handle errors ────────────────────────────────────────────────────────
-    if result["status"] == "error":
-        raise HTTPException(status_code=422, detail=result["error"])
+    if result.get("status") == "error":
+        raise HTTPException(
+            status_code=422,
+            detail=result.get("error")
+        )
 
     return result
 
 
-@app.post("/predict/gradcam", tags=["Prediction"])
+# ─────────────────────────────────────────────────────────────
+# GradCAM
+# ─────────────────────────────────────────────────────────────
+@app.post("/predict/gradcam")
 async def predict_with_gradcam(
-    file: UploadFile = File(..., description="Plant leaf image for Grad-CAM analysis")
+    file: UploadFile = File(...)
 ):
-    """
-    **Enhanced prediction with Grad-CAM visualization.**
-    
-    Returns the same data as `/predict` PLUS a base64-encoded heatmap image
-    showing which areas of the leaf the model focused on.
-    
-    Grad-CAM (Gradient-weighted Class Activation Mapping) highlights the
-    most disease-relevant regions, making predictions transparent and trustworthy.
-    
-    - **gradcam_image**: Base64-encoded PNG heatmap overlay
-    """
     start_time = time.time()
+
     validate_image_file(file)
 
-    try:
-        image_bytes = await file.read()
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+    image_bytes = await file.read()
 
     if len(image_bytes) == 0:
-        raise HTTPException(status_code=400, detail="Empty file received.")
+        raise HTTPException(
+            status_code=400,
+            detail="Empty file received"
+        )
+
+    if predictor is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Predictor not initialized"
+        )
 
     logger.info(f"Grad-CAM request: {file.filename}")
 
-    if predictor is None:
-        raise HTTPException(status_code=503, detail="Predictor not initialized")
+    result = predictor.predict_with_gradcam(
+        image_bytes
+    )
 
-    result = predictor.predict_with_gradcam(image_bytes)
-    if "error" not in result:
-        result["error"] = None
-    result["processing_time_ms"] = round((time.time() - start_time) * 1000, 2)
-
-    if result["status"] == "error":
-        raise HTTPException(status_code=422, detail=result["error"])
+    result["processing_time_ms"] = round(
+        (time.time() - start_time) * 1000,
+        2
+    )
 
     return result
 
 
-@app.get("/diseases", tags=["Information"])
+# ─────────────────────────────────────────────────────────────
+# Diseases
+# ─────────────────────────────────────────────────────────────
+@app.get("/diseases")
 async def list_diseases():
-    """
-    List all disease classes the model can detect.
-    
-    Returns disease names grouped by crop type.
-    """
-    if predictor is None or not predictor.class_labels:
-        # Return from treatment database if model not loaded
-        diseases = list(TREATMENT_DATABASE.keys())
-    else:
-        diseases = list(predictor.class_labels.values())
 
-    # Group by crop
+    if predictor is None:
+        diseases = list(
+            TREATMENT_DATABASE.keys()
+        )
+    else:
+        diseases = list(
+            predictor.class_labels.values()
+        )
+
     grouped = {}
+
     for disease in diseases:
-        crop = disease.split("___")[0] if "___" in disease else "Other"
-        if crop not in grouped:
-            grouped[crop] = []
+
+        crop = (
+            disease.split("___")[0]
+            if "___" in disease
+            else "Other"
+        )
+
+        grouped.setdefault(crop, [])
         grouped[crop].append(disease)
 
     return {
@@ -326,61 +372,62 @@ async def list_diseases():
     }
 
 
-@app.get("/treatments/{disease_name}", tags=["Information"])
-async def get_treatment(disease_name: str):
-    """
-    Get treatment recommendation for a specific disease.
-    
-    - **disease_name**: Disease class name (e.g., `Tomato___Early_blight`)
-    
-    URL-encode any special characters in the disease name.
-    """
-    # Decode URL-encoded characters
-    from urllib.parse import unquote
-    disease_name = unquote(disease_name)
+# ─────────────────────────────────────────────────────────────
+# Treatment
+# ─────────────────────────────────────────────────────────────
+@app.get("/treatments/{disease_name}")
+async def get_treatment(
+    disease_name: str
+):
 
-    treatment = TREATMENT_DATABASE.get(disease_name)
+    treatment = TREATMENT_DATABASE.get(
+        disease_name
+    )
 
     if not treatment:
-        # Try case-insensitive match
-        for key, val in TREATMENT_DATABASE.items():
-            if key.lower() == disease_name.lower():
-                return {"disease": key, "treatment": val, "exact_match": False}
-
         raise HTTPException(
             status_code=404,
-            detail=f"Disease '{disease_name}' not found in treatment database. "
-                   f"Use GET /diseases to see all available disease names."
+            detail="Disease not found"
         )
 
     return {
         "disease": disease_name,
-        "treatment": treatment,
-        "exact_match": True
+        "treatment": treatment
     }
 
 
+# ─────────────────────────────────────────────────────────────
+# Global Exception Handler
+# ─────────────────────────────────────────────────────────────
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler — returns clean JSON errors."""
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+async def global_exception_handler(
+    request: Request,
+    exc: Exception
+):
+
+    logger.error(
+        f"Unhandled exception: {exc}",
+        exc_info=True
+    )
+
     return JSONResponse(
         status_code=500,
         content={
             "status": "error",
-            "error": "Internal server error. Please try again.",
-            "detail": str(exc)
+            "error": str(exc)
         }
     )
 
 
-# ─── Entry Point ──────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# Run Server
+# ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,
-        log_level="info"
+        reload=True
     )
