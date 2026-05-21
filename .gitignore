@@ -280,6 +280,8 @@ Thumbs.db
 *.pkl
 *.joblib
 model/
+!model/drishtiscan_model.tflite
+!model/class_labels.json
 !model/.gitkeep
 
 # Dataset files (if large)
