@@ -262,6 +262,14 @@ async def predict_disease(
     result.setdefault("prevention", [])
     result.setdefault("is_uncertain", False)
 
+    # Normalize treatment fields to lists for Pydantic validation
+    for field in ["treatment", "organic_treatment", "prevention"]:
+        value = result.get(field)
+        if isinstance(value, str):
+            result[field] = [value]
+        elif value is None:
+            result[field] = []
+
     # FIX TOP PREDICTIONS FORMAT
     formatted_predictions = []
 
@@ -301,7 +309,7 @@ async def predict_disease(
 # ─────────────────────────────────────────────────────────────
 # GradCAM
 # ─────────────────────────────────────────────────────────────
-@app.post("/predict/gradcam")
+@app.post("/predict/gradcam", response_model=PredictionResponse)
 async def predict_with_gradcam(
     file: UploadFile = File(...)
 ):
@@ -328,6 +336,14 @@ async def predict_with_gradcam(
     result = predictor.predict_with_gradcam(
         image_bytes
     )
+
+    # Normalize treatment fields to lists for Pydantic validation
+    for field in ["treatment", "organic_treatment", "prevention"]:
+        value = result.get(field)
+        if isinstance(value, str):
+            result[field] = [value]
+        elif value is None:
+            result[field] = []
 
     result["processing_time_ms"] = round(
         (time.time() - start_time) * 1000,
