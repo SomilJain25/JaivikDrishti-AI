@@ -11,6 +11,11 @@ import time
 from typing import Optional, List
 from app.auth import verify_api_key
 from fastapi import Depends
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
+from slowapi import Limiter
+from slowapi.extension import _rate_limit_exceeded_handler
 
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
@@ -61,6 +66,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -203,14 +213,6 @@ async def root():
 # ─────────────────────────────────────────────────────────────
 # Predict Disease
 # ─────────────────────────────────────────────────────────────
-
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-
-app = FastAPI()
-
-limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
 
 @app.post(
     "/predict",
@@ -464,5 +466,3 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
-from app.rate_limiter import limiter
-app.state.limiter=limiter

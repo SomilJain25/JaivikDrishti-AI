@@ -4,6 +4,11 @@
  */
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_KEY = import.meta.env.VITE_API_KEY;
+
+const authHeaders = () => (
+  API_KEY ? { "X-API-Key": API_KEY } : {}
+);
 
 // ─── Helper ────────────────────────────────────────────────────────────────
 
@@ -28,6 +33,7 @@ export const detectDisease = async (imageFile) => {
 
   const res = await fetch(`${BASE_URL}/predict`, {
     method: "POST",
+    headers: authHeaders(),
     body: formData,
     // Don't set Content-Type — browser sets it with boundary for FormData
   });
@@ -65,6 +71,7 @@ export const detectDiseaseWithGradcam = async (imageFile) => {
 
   const res = await fetch(`${BASE_URL}/predict/gradcam`, {
     method: "POST",
+    headers: authHeaders(),
     body: formData,
   });
 
