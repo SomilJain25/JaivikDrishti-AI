@@ -1,0 +1,48 @@
+# =============================================================================
+# DrishtiScan — monitoring/prometheus.yml
+# Prometheus scrape configuration
+#
+# Prometheus polls /metrics every 15s and stores time-series data.
+# Grafana then queries Prometheus to build dashboards.
+# =============================================================================
+
+global:
+  scrape_interval:     15s   # How often to poll /metrics
+  evaluation_interval: 15s   # How often to evaluate alerting rules
+  scrape_timeout:      10s
+
+  # Labels added to all metrics from this Prometheus instance
+  external_labels:
+    monitor:     'drishtiscan'
+    environment: 'production'
+
+# ── Alerting rules ─────────────────────────────────────────────────────────────
+rule_files:
+  - "alerts.yml"
+
+# ── Alertmanager (sends email/Slack on alerts) ─────────────────────────────────
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []    # add alertmanager:9093 when configured
+
+# ── Scrape targets ─────────────────────────────────────────────────────────────
+scrape_configs:
+
+  # DrishtiScan FastAPI app
+  - job_name: 'drishtiscan_api'
+    static_configs:
+      - targets: ['drishtiscan:8000']   # service name in docker-compose
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Nginx (if nginx-prometheus-exporter is added)
+  # - job_name: 'nginx'
+  #   static_configs:
+  #     - targets: ['nginx-exporter:9113']

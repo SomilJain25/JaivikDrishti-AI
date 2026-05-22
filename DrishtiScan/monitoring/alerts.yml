@@ -1,0 +1,69 @@
+# =============================================================================
+# DrishtiScan — monitoring/alerts.yml
+# Prometheus alerting rules
+# These fire when something goes wrong — Prometheus sends to Alertmanager
+# which can email/Slack/PagerDuty you.
+# =============================================================================
+
+groups:
+  - name: drishtiscan_api_alerts
+    rules:
+
+      # API is down for > 1 minute
+      - alert: APIDown
+        expr: up{job="drishtiscan_api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "DrishtiScan API is DOWN"
+          description: "The FastAPI service has been unreachable for more than 1 minute."
+
+      # High error rate: > 5% of predictions failing
+      - alert: HighPredictionErrorRate
+        expr: |
+          rate(drishtiscan_errors_total[5m]) /
+          rate(drishtiscan_predictions_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High prediction error rate"
+          description: "More than 5% of predictions are failing over the last 5 minutes."
+
+      # Slow inference: p95 latency > 3 seconds
+      - alert: SlowInference
+        expr: |
+          histogram_quantile(0.95,
+            rate(drishtiscan_inference_duration_ms_bucket[5m])
+          ) > 3000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow ML inference detected"
+          description: "p95 inference time is above 3 seconds."
+
+      # Too many 429 (rate limit) responses — may indicate abuse
+      - alert: HighRateLimitHits
+        expr: |
+          rate(http_requests_total{status="429"}[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate of 429 responses"
+          description: "More than 10 rate-limited requests per second."
+
+      # Low confidence predictions dominating (model may need retraining)
+      - alert: LowConfidencePredictions
+        expr: |
+          histogram_quantile(0.50,
+            rate(drishtiscan_prediction_confidence_bucket[30m])
+          ) < 0.60
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Median prediction confidence is low"
+          description: "Median confidence below 60% — consider retraining the model."

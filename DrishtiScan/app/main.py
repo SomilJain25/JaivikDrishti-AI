@@ -16,7 +16,9 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from slowapi import Limiter
 from slowapi.extension import _rate_limit_exceeded_handler
-
+from app.metrics import setup_metrics
+from app.metrics import record_prediction
+from app.metrics import record_error
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -54,6 +56,7 @@ app = FastAPI(
     description="AI-powered crop disease detection system",
     version="1.0.0",
 )
+setup_metrics(app)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -234,6 +237,8 @@ async def predict_disease(
         image_bytes = await file.read()
 
     except Exception as e:
+        record_error(type(e).__name__)
+        
         raise HTTPException(
             status_code=400,
             detail=f"Failed to read file: {str(e)}"
@@ -321,7 +326,15 @@ async def predict_disease(
             status_code=422,
             detail=result.get("error")
         )
-
+    record_prediction(
+    disease=result.get("disease", "Unknown"),
+    confidence=float(
+        result.get("confidence", 0.0)
+    ),
+    inference_ms=result["processing_time_ms"],
+    image_bytes=len(image_bytes),
+    status=result.get("status", "success")
+    )
     return result
 
 
