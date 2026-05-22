@@ -203,11 +203,21 @@ async def root():
 # ─────────────────────────────────────────────────────────────
 # Predict Disease
 # ─────────────────────────────────────────────────────────────
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+app = FastAPI()
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
 @app.post(
     "/predict",
     response_model=PredictionResponse,
     tags=["Prediction"]
 )
+
 @limiter.limit("30/minute")
 async def predict_disease(
     request: Request,
