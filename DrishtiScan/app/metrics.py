@@ -144,7 +144,7 @@ def setup_metrics(app: FastAPI) -> None:
     Instrumentator(
         should_group_status_codes=False,
         should_ignore_untemplated=True,
-        should_respect_env_var=True,
+        should_respect_env_var=False,
         should_instrument_requests_inprogress=True,
         excluded_handlers=["/metrics", "/health"],
         body_handlers=["/predict", "/predict/gradcam"],
