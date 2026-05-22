@@ -392,6 +392,25 @@ class CropScanPredictor:
         """
         return TREATMENT_DATABASE.get(disease_name, DEFAULT_TREATMENT)
 
+    def predict_with_model(self, model, image_input, return_top_k: int = 3) -> dict:
+        """
+        Run prediction with a registry-provided model wrapper.
+
+        The current registry stores CropScanPredictor instances so versioning can
+        be added without duplicating the prediction logic.
+        """
+        if isinstance(model, CropScanPredictor):
+            return model.predict(image_input, return_top_k=return_top_k)
+
+        logger.warning("Unsupported registry model type: %s", type(model).__name__)
+        return {
+            "status": "error",
+            "error": "Unsupported registry model type.",
+            "disease": None,
+            "confidence": 0.0,
+            "treatment": None,
+        }
+
     def predict(self, image_input, return_top_k: int = 3) -> dict:
         """
         Run full prediction pipeline on an image.

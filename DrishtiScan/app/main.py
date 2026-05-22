@@ -60,8 +60,6 @@ app = FastAPI(
 )
 setup_metrics(app)
 
-registry.load_all()
-
 
 # ─────────────────────────────────────────────────────────────
 # CORS
@@ -93,7 +91,9 @@ async def startup_event():
     logger.info("Starting CropScan API...")
 
     try:
-        predictor = CropScanPredictor()
+        registry.load_all()
+        predictor, version, _labels = registry.get_model()
+        logger.info(f"Model registry loaded active version: {version}")
         logger.info("Model loaded successfully")
 
     except Exception as e:
@@ -127,6 +127,7 @@ class PredictionResponse(BaseModel):
     top_predictions: List[TopPrediction] = []
 
     processing_time_ms: Optional[float] = None
+    model_version: Optional[str] = None
     error: Optional[str] = None
 
     model_config = {
@@ -212,6 +213,7 @@ async def root():
             "POST /predict/gradcam",
             "GET /diseases",
             "GET /treatments/{disease_name}",
+            "GET /models",
             "GET /docs"
         ]
     }
@@ -339,24 +341,25 @@ async def predict_disease(
         )
     
     registry.record_prediction(
-    version,
-    confidence=float(result.get("confidence", 0.0))
+        version,
+        confidence=float(result.get("confidence", 0.0))
     )
 
     record_prediction(
-    disease=result.get("disease", "Unknown"),
-    confidence=float(
-        result.get("confidence", 0.0)
-    ),
-    inference_ms=result["processing_time_ms"],
-    image_bytes=len(image_bytes),
-    status=result.get("status", "success")
+        disease=result.get("disease", "Unknown"),
+        confidence=float(
+            result.get("confidence", 0.0)
+        ),
+        inference_ms=result["processing_time_ms"],
+        image_bytes=len(image_bytes),
+        status=result.get("status", "success")
     )
     return result
 
-    @app.get("/models")
-    async def model_stats():
-        return registry.get_stats()
+
+@app.get("/models")
+async def model_stats():
+    return registry.get_stats()
 
 # ─────────────────────────────────────────────────────────────
 # GradCAM
