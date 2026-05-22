@@ -19,6 +19,8 @@ from slowapi.extension import _rate_limit_exceeded_handler
 from app.metrics import setup_metrics
 from app.metrics import record_prediction
 from app.metrics import record_error
+from monitoring.prediction_logger import prediction_logger
+from versioning.model_registry import registry
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -57,6 +59,8 @@ app = FastAPI(
     version="1.0.0",
 )
 setup_metrics(app)
+
+registry.load_all()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -238,7 +242,7 @@ async def predict_disease(
 
     except Exception as e:
         record_error(type(e).__name__)
-        
+
         raise HTTPException(
             status_code=400,
             detail=f"Failed to read file: {str(e)}"
@@ -263,7 +267,14 @@ async def predict_disease(
         f"({len(image_bytes)/1024:.1f}KB)"
     )
 
-    result = predictor.predict(image_bytes)
+    model, version, labels = registry.get_model()
+
+    result = predictor.predict_with_model(
+        model,
+        image_bytes
+    )
+
+    result["model_version"] = version
 
     if not isinstance(result, dict):
         raise HTTPException(
@@ -326,6 +337,12 @@ async def predict_disease(
             status_code=422,
             detail=result.get("error")
         )
+    
+    registry.record_prediction(
+    version,
+    confidence=float(result.get("confidence", 0.0))
+    )
+
     record_prediction(
     disease=result.get("disease", "Unknown"),
     confidence=float(
@@ -337,6 +354,9 @@ async def predict_disease(
     )
     return result
 
+    @app.get("/models")
+    async def model_stats():
+        return registry.get_stats()
 
 # ─────────────────────────────────────────────────────────────
 # GradCAM
