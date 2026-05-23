@@ -2,8 +2,6 @@
 # DrishtiScan — app/metrics.py
 # Prometheus metrics instrumentation
 #
-# Install: pip install prometheus-fastapi-instrumentator
-#
 # Exposes /metrics endpoint for Prometheus to scrape every 15s.
 #
 # Metrics tracked:
@@ -16,16 +14,13 @@
 #   http_request_duration_seconds        — auto: request latency histogram
 # =============================================================================
 
-import time
 import logging
-from typing import Callable
 
 from fastapi import FastAPI, Request, Response
 from prometheus_client import (
-    Counter, Histogram, Gauge, Summary,
-    CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST
+    Counter, Histogram, Gauge,
+    generate_latest, CONTENT_TYPE_LATEST
 )
-from prometheus_fastapi_instrumentator import Instrumentator
 
 logger = logging.getLogger("drishtiscan.metrics")
 
@@ -64,6 +59,19 @@ errors_total = Counter(
     name="drishtiscan_errors_total",
     documentation="Total prediction errors",
     labelnames=["error_type"],
+)
+
+http_requests_total = Counter(
+    name="http_requests_total",
+    documentation="Total HTTP requests",
+    labelnames=["method", "path", "status"],
+)
+
+http_request_duration_seconds = Histogram(
+    name="http_request_duration_seconds",
+    documentation="HTTP request duration in seconds",
+    labelnames=["method", "path"],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
 )
 
 # Running totals for healthy ratio calculation
@@ -141,13 +149,33 @@ def setup_metrics(app: FastAPI) -> None:
         from app.metrics import setup_metrics
         setup_metrics(app)
     """
-    Instrumentator(
-        should_group_status_codes=False,
-        should_ignore_untemplated=True,
-        should_respect_env_var=False,
-        should_instrument_requests_inprogress=True,
-        excluded_handlers=["/metrics", "/health"],
-        body_handlers=["/predict", "/predict/gradcam"],
-    ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+    @app.middleware("http")
+    async def prometheus_http_metrics(request: Request, call_next):
+        import time
+
+        start = time.perf_counter()
+        response = await call_next(request)
+
+        path = request.scope.get("route").path if request.scope.get("route") else request.url.path
+        if path != "/metrics":
+            duration = time.perf_counter() - start
+            http_requests_total.labels(
+                method=request.method,
+                path=path,
+                status=str(response.status_code),
+            ).inc()
+            http_request_duration_seconds.labels(
+                method=request.method,
+                path=path,
+            ).observe(duration)
+
+        return response
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics():
+        return Response(
+            generate_latest(),
+            media_type=CONTENT_TYPE_LATEST,
+        )
 
     logger.info("Prometheus metrics enabled at /metrics")
