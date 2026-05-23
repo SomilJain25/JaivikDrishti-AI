@@ -1,0 +1,113 @@
+# =============================================================================
+# DrishtiScan — docker-compose.yml
+# =============================================================================
+# Services:
+#   nginx        — reverse proxy (port 80/443) → routes to API
+#   drishtiscan  — FastAPI app (internal port 8000)
+#   prometheus   — metrics scraper
+#   grafana      — dashboard UI (port 3000)
+#
+# Usage:
+#   Start all:        docker-compose up -d
+#   Stop all:         docker-compose down
+#   View logs:        docker-compose logs -f drishtiscan
+#   Rebuild API:      docker-compose up -d --build drishtiscan
+# =============================================================================
+
+version: "3.9"
+
+# ── Shared network ─────────────────────────────────────────────────────────────
+networks:
+  krishinet:
+    driver: bridge
+
+# ── Named volumes (data persists across restarts) ──────────────────────────────
+volumes:
+  prometheus_data:
+  grafana_data:
+  prediction_logs:
+
+# ── Services ───────────────────────────────────────────────────────────────────
+services:
+
+  # ── 1. FastAPI app ────────────────────────────────────────────────────────
+  drishtiscan:
+    build:
+      context: ..          # root of your DrishtiScan/ project
+      dockerfile: Dockerfile
+    container_name: drishtiscan_api
+    restart: unless-stopped
+    environment:
+      - APP_ENV=production
+      - LOG_LEVEL=info
+      - SECRET_KEY=${SECRET_KEY:-changeme-in-production}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost,http://localhost:3000}
+    volumes:
+      # Model files — mount from host so you can swap model without rebuilding
+      - ../model:/app/model:ro
+      # Logs persist on host
+      - prediction_logs:/app/logs
+    networks:
+      - krishinet
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ── 2. Nginx reverse proxy ─────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: drishtiscan_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro       # mount your SSL certs here
+    depends_on:
+      drishtiscan:
+        condition: service_healthy
+    networks:
+      - krishinet
+
+  # ── 3. Prometheus (metrics collection) ────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: drishtiscan_prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    networks:
+      - krishinet
+
+  # ── 4. Grafana (dashboard) ────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: drishtiscan_grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - krishinet
