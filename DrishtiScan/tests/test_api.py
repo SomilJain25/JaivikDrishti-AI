@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.main import app
-from predict import CropScanPredictor, TREATMENT_DATABASE
+from app.predict import CropScanPredictor, TREATMENT_DATABASE
 
 # ─── Test Client ──────────────────────────────────────────────────────────────
 client = TestClient(app)

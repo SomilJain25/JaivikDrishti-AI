@@ -396,11 +396,45 @@ class CropScanPredictor:
         """
         Run prediction with a registry-provided model wrapper.
 
-        The current registry stores CropScanPredictor instances so versioning can
-        be added without duplicating the prediction logic.
+        Supports either another CropScanPredictor, a raw TFLite Interpreter, or
+        a Keras model from the version registry.
         """
         if isinstance(model, CropScanPredictor):
             return model.predict(image_input, return_top_k=return_top_k)
+
+        original_state = (
+            self.model,
+            self.interpreter,
+            self.input_details,
+            self.output_details,
+            self.model_type,
+        )
+
+        try:
+            if isinstance(model, tf.lite.Interpreter):
+                self.model = None
+                self.interpreter = model
+                self.input_details = model.get_input_details()
+                self.output_details = model.get_output_details()
+                self.model_type = "tflite"
+                return self.predict(image_input, return_top_k=return_top_k)
+
+            if isinstance(model, tf.keras.Model):
+                self.model = model
+                self.interpreter = None
+                self.input_details = None
+                self.output_details = None
+                self.model_type = "keras"
+                return self.predict(image_input, return_top_k=return_top_k)
+
+        finally:
+            (
+                self.model,
+                self.interpreter,
+                self.input_details,
+                self.output_details,
+                self.model_type,
+            ) = original_state
 
         logger.warning("Unsupported registry model type: %s", type(model).__name__)
         return {

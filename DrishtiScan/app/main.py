@@ -92,7 +92,8 @@ async def startup_event():
 
     try:
         registry.load_all()
-        predictor, version, _labels = registry.get_model()
+        predictor = CropScanPredictor()
+        _model, version, _labels = registry.get_model()
         logger.info(f"Model registry loaded active version: {version}")
         logger.info("Model loaded successfully")
 
