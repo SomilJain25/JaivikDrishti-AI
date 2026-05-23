@@ -1,0 +1,149 @@
+# =============================================================================
+# DrishtiScan — GitHub Actions CI/CD Pipeline
+# File: .github/workflows/deploy.yml
+#
+# Triggers:
+#   push to main  → run tests → build Docker image → deploy to server
+#   pull request  → run tests only (no deploy)
+#
+# Secrets to add in GitHub → Settings → Secrets:
+#   DOCKER_USERNAME    your Docker Hub username
+#   DOCKER_PASSWORD    your Docker Hub password / token
+#   DEPLOY_HOST        your server IP or domain (e.g. 123.45.67.89)
+#   DEPLOY_USER        SSH user on the server (e.g. ubuntu)
+#   DEPLOY_SSH_KEY     your private SSH key (paste entire key)
+#   SECRET_KEY         random secret for JWT signing
+# =============================================================================
+
+name: DrishtiScan CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# env:
+#   IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/drishtiscan
+#   IMAGE_TAG:  ${{ github.sha }}
+
+jobs:
+  # ── Job 1: Test ──────────────────────────────────────────────────────────────
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest httpx pytest-cov
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v \
+            --cov=app \
+            --cov=predict \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --tb=short
+        env:
+          # No model needed for most unit tests; they mock the predictor
+          APP_ENV: testing
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+
+
+  # ── Job 2: Build & Push Docker image ─────────────────────────────────────────
+  # build:
+  #   name: Build Docker Image
+  #   needs: test                    # only runs if tests pass
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main'   # only on main branch pushes
+
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+
+  #     - name: Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v3
+
+  #     - name: Log in to Docker Hub
+  #       uses: docker/login-action@v3
+  #       with:
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_PASSWORD }}
+
+  #     - name: Build and push image
+  #       uses: docker/build-push-action@v5
+  #       with:
+  #         context: .
+  #         file: Dockerfile
+  #         push: true
+  #         tags: |
+  #           ${{ env.IMAGE_NAME }}:latest
+  #           ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+  #         cache-from: type=gha           # use GitHub Actions cache to speed up builds
+  #         cache-to: type=gha,mode=max
+
+
+  # # ── Job 3: Deploy to server ───────────────────────────────────────────────────
+  # deploy:
+  #   name: Deploy to Production
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main'
+
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+
+  #     - name: Deploy via SSH
+  #       uses: appleboy/ssh-action@v1.0.3
+  #       with:
+  #         host:     ${{ secrets.DEPLOY_HOST }}
+  #         username: ${{ secrets.DEPLOY_USER }}
+  #         key:      ${{ secrets.DEPLOY_SSH_KEY }}
+  #         script: |
+  #           # Pull the new image
+  #           docker pull ${{ env.IMAGE_NAME }}:latest
+
+  #           # Navigate to project directory on server
+  #           cd /opt/drishtiscan
+
+  #           # Update the image tag in compose
+  #           export IMAGE_TAG=${{ env.IMAGE_TAG }}
+  #           export SECRET_KEY=${{ secrets.SECRET_KEY }}
+
+  #           # Rolling restart — zero downtime
+  #           docker-compose pull drishtiscan
+  #           docker-compose up -d --no-deps drishtiscan
+
+  #           # Health check after deploy
+  #           sleep 10
+  #           curl -f http://localhost:8000/ || (echo "Health check failed!" && exit 1)
+
+  #           # Cleanup old images
+  #           docker image prune -f
+
+  #     - name: Notify success
+  #       if: success()
+  #       run: echo "✅ Deployed ${{ env.IMAGE_TAG }} to production"
+
+  #     - name: Notify failure
+  #       if: failure()
+  #       run: echo "❌ Deployment failed for ${{ env.IMAGE_TAG }}"
