@@ -296,10 +296,9 @@ async def predict_disease(
 
     if predictor is None:
         raise HTTPException(
-            status_code=503,
+            status_code=422,
             detail="Predictor not initialized"
-        )
-
+    )
     logger.info(
         f"Prediction request: "
         f"{file.filename} "
