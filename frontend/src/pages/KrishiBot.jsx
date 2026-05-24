@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useState, useRef, useEffect } from "react";
-import "./App.css";
+import "../App.css";
 
 // ============================================================
 // FastAPI runs on port 8000 by default (not 3001 like Express)

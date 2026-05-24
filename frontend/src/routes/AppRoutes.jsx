@@ -12,7 +12,7 @@ export default function AppRoutes() {
       <Route path="/crop-scan" element={<CropScan />} />
       <Route path="/mandi-bazaar-ai" element={<MandiPredict />} />
       <Route path="/yield-sense" element={<YieldSense />} />
-      <Route path="/krishi-bot" element={<KrishiBot />} />
+      <Route path="/krishibot" element={<KrishiBot />} />
     </Routes>
   )
 }
