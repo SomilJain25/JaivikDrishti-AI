@@ -21,6 +21,10 @@ from app.metrics import record_prediction
 from app.metrics import record_error
 from monitoring.prediction_logger import prediction_logger
 from versioning.model_registry import registry
+from dotenv import load_dotenv
+import openai
+from knowledge_base import KNOWLEDGE_BASE
+from topic_filter import is_agriculture_question
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -135,6 +139,21 @@ class PredictionResponse(BaseModel):
         "extra": "ignore"
     }
 
+class Message(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    history: Optional[List[Message]] = []
+
+
+class ChatResponse(BaseModel):
+    blocked: bool
+    pipeline_step: str
+    reply: str
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -195,6 +214,23 @@ def validate_image_file(file: UploadFile):
             detail=f"Invalid file extension: {ext}"
         )
 
+def build_context(user_question: str):
+    return KNOWLEDGE_BASE
+
+
+def build_system_prompt(context: str):
+
+    return f"""
+You are KrishiBot, an agricultural AI assistant.
+
+Knowledge:
+{context}
+
+Rules:
+- Answer only agriculture questions
+- Use simple farmer-friendly language
+- Mention Indian crops/schemes if relevant
+"""
 
 # ─────────────────────────────────────────────────────────────
 # Routes
@@ -467,6 +503,79 @@ async def get_treatment(
         "treatment": treatment
     }
 
+@app.post(
+    "/chat",
+    response_model=ChatResponse,
+    tags=["KrishiBot"]
+)
+async def chat(request: ChatRequest):
+
+    message = request.message.strip()
+
+    if not message:
+        raise HTTPException(
+            status_code=400,
+            detail="Message cannot be empty"
+        )
+
+    if not is_agriculture_question(message):
+
+        return ChatResponse(
+            blocked=True,
+            pipeline_step="topic_filter",
+            reply="Please ask agriculture-related questions only 🌾"
+        )
+
+    context = build_context(message)
+
+    system_prompt = build_system_prompt(
+        context
+    )
+
+    messages = [
+        {
+            "role":"system",
+            "content":system_prompt
+        }
+    ]
+
+    for h in request.history:
+
+        messages.append(
+            {
+                "role": h.role,
+                "content": h.content
+            }
+        )
+
+    messages.append(
+        {
+            "role":"user",
+            "content":message
+        }
+    )
+
+    try:
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            max_tokens=500,
+            messages=messages
+        )
+
+        return ChatResponse(
+            blocked=False,
+            pipeline_step="answered",
+            reply=response.choices[0].message.content
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
 
 # ─────────────────────────────────────────────────────────────
 # Global Exception Handler
@@ -503,3 +612,10 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
+
+#chatbot
+load_dotenv()
+
+client = openai.OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY")
+)
