@@ -23,8 +23,8 @@ from monitoring.prediction_logger import prediction_logger
 from versioning.model_registry import registry
 from dotenv import load_dotenv
 import openai
-from knowledge_base import KNOWLEDGE_BASE
-from topic_filter import is_agriculture_question
+from app.knowledge_base import KNOWLEDGE_BASE
+from app.topic_filter import is_agriculture_question
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
