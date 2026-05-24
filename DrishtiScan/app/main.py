@@ -557,6 +557,12 @@ async def chat(request: ChatRequest):
 
     try:
 
+        if client is None:
+            raise HTTPException(
+                status_code=500,
+                detail="OpenAI API key not configured"
+    )
+
         response = client.chat.completions.create(
             model="gpt-4o",
             max_tokens=500,
@@ -616,6 +622,11 @@ if __name__ == "__main__":
 #chatbot
 load_dotenv()
 
-client = openai.OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+client = None
+
+if OPENAI_API_KEY:
+    client = openai.OpenAI(
+        api_key=OPENAI_API_KEY
+    )
