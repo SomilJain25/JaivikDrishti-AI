@@ -1,191 +1,239 @@
-import { useState, useRef, useEffect } from 'react'
-import { 
-  Bot, 
-  Send, 
-  Mic, 
-  User, 
-  Loader2,
-  Sparkles,
-  MessageCircle
-} from 'lucide-react'
-import { useLanguage } from '../context/LanguageContext'
-import { getChatResponse } from '../services/api'
+// ============================================================
+// KRISHIBOT FRONTEND — src/App.jsx
+// React chat UI — calls FastAPI backend at localhost:8000
+// ============================================================
 
-const quickQuestions = {
-  en: [
-    'How to control pests organically?',
-    'Best fertilizer for wheat?',
-    'When to sow rice?',
-    'How to improve soil health?',
-    'Drip irrigation benefits?',
-    'Crop rotation tips?'
-  ],
-  hi: [
-    'जैविक तरीके से कीट कैसे नियंत्रित करें?',
-    'गेहूं के लिए सर्वश्रेष्ठ उर्वरक?',
-    'धान कब बोएं?',
-    'मिट्टी का स्वास्थ्य कैसे सुधारें?',
-    'ड्रिप सिंचाई के फायदे?',
-    'फसल चक्र के टिप्स?'
-  ]
-}
+import { useState, useRef, useEffect } from "react";
+import "./App.css";
 
-export default function KrishiBot() {
-  const { lang, t } = useLanguage()
-  const [messages, setMessages] = useState([
-    { 
-      role: 'bot', 
-      text: lang === 'en' 
-        ? 'Namaste! I am KrishiBot. How can I help you with farming today?'
-        : 'नमस्ते! मैं कृषिबॉट हूं। आज मैं आपकी खेती में कैसे मदद कर सकता हूं?'
-    }
-  ])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const messagesEndRef = useRef(null)
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-  
+// ============================================================
+// FastAPI runs on port 8000 by default (not 3001 like Express)
+// ============================================================
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+const PIPELINE_STEPS = [
+  { id: "input",   label: "Question" },
+  { id: "filter",  label: "Topic filter" },
+  { id: "context", label: "Context builder" },
+  { id: "llm",     label: "ChatGPT" },
+  { id: "answer",  label: "Answer" },
+];
+
+const SUGGESTIONS = [
+  "Best crops for black soil?",
+  "How to treat aphids on wheat?",
+  "NPK ratio for tomatoes?",
+  "What is PM-KISAN scheme?",
+  "Drip vs sprinkler irrigation?",
+];
+
+export default function App() {
+  const [messages, setMessages]               = useState([]);
+  const [input, setInput]                     = useState("");
+  const [loading, setLoading]                 = useState(false);
+  const [activeStep, setActiveStep]           = useState(null);
+  const [pipelineBlocked, setPipelineBlocked] = useState(false);
+  const bottomRef = useRef(null);
+
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-  
-  const handleSend = async (text = input) => {
-    if (!text.trim()) return
-    
-    const userMsg = { role: 'user', text }
-    setMessages(prev => [...prev, userMsg])
-    setInput('')
-    setLoading(true)
-    
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  // ============================================================
+  // Send message → FastAPI POST /chat
+  // ============================================================
+  async function sendMessage(text) {
+    const userText = (text || input).trim();
+    if (!userText || loading) return;
+
+    setInput("");
+    setLoading(true);
+    setPipelineBlocked(false);
+
+    const newMessages = [...messages, { role: "user", content: userText }];
+    setMessages(newMessages);
+
+    // Animate pipeline
+    setActiveStep("input");
+    await delay(300);
+    setActiveStep("filter");
+    await delay(400);
+
     try {
-      const response = await getChatResponse(text)
-      setMessages(prev => [...prev, { role: 'bot', text: response.message }])
-    } catch (error) {
-      setMessages(prev => [...prev, { 
-        role: 'bot', 
-        text: lang === 'en' ? 'Sorry, I could not process that.' : 'क्षमा करें, मैं इसे प्रोसेस नहीं कर सका।'
-      }])
+      // Call FastAPI backend
+      // FastAPI expects: { message: string, history: [{role, content}] }
+      const res = await fetch(`${API_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userText,
+          history: newMessages.slice(0, -1).map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+
+      // Handle HTTP errors from FastAPI (422 validation, 500 server, etc.)
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Server error");
+      }
+
+      // FastAPI returns: { blocked, pipeline_step, reply }
+      const data = await res.json();
+
+      // Topic filter blocked the question
+      if (data.blocked) {
+        setPipelineBlocked(true);
+        setActiveStep("filter");
+        setMessages([...newMessages, { role: "assistant", content: data.reply, blocked: true }]);
+        await delay(1500);
+        setActiveStep(null);
+        setPipelineBlocked(false);
+        return;
+      }
+
+      // Animate remaining pipeline steps
+      setActiveStep("context");
+      await delay(400);
+      setActiveStep("llm");
+
+      setMessages([...newMessages, { role: "assistant", content: data.reply }]);
+
+      setActiveStep("answer");
+      await delay(1200);
+      setActiveStep(null);
+
+    } catch (err) {
+      setMessages([
+        ...newMessages,
+        {
+          role: "assistant",
+          content: `⚠️ Error: ${err.message}. Make sure FastAPI backend is running on port 8000.`,
+          error: true,
+        },
+      ]);
+      setActiveStep(null);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
-  
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
+
+  function handleKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
   }
-  
+
   return (
-    <div className="min-h-screen pb-4 flex flex-col">
-      <div className="max-w-4xl mx-auto w-full px-4 flex-1 flex flex-col">
-        {/* Header */}
-        <div className="text-center py-6 animate-slide-up">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg">
-            <Bot className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">KrishiBot</h1>
-          <p className="text-gray-600">
-            {lang === 'en' ? 'Your AI farming assistant' : 'आपका एआई कृषि सहायक'}
-          </p>
+    <div className="kb-root">
+
+      {/* Header */}
+      <header className="kb-header">
+        <div className="kb-logo">🌾</div>
+        <div>
+          <div className="kb-title">KrishiBot</div>
+          <div className="kb-subtitle">by KrishiDrishti AI · Agricultural Intelligence</div>
         </div>
-        
-        {/* Chat Container */}
-        <div className="glass-card flex-1 flex flex-col min-h-[500px] mb-4 overflow-hidden">
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((msg, idx) => (
-              <div 
-                key={idx} 
-                className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''} animate-fade-in`}
-              >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
-                  ${msg.role === 'bot' ? 'bg-blue-100' : 'bg-green-100'}`}>
-                  {msg.role === 'bot' ? (
-                    <Bot className="w-5 h-5 text-blue-600" />
-                  ) : (
-                    <User className="w-5 h-5 text-primary-700" />
-                  )}
-                </div>
-                <div className={`max-w-[80%] p-4 rounded-2xl text-sm leading-relaxed
-                  ${msg.role === 'bot' 
-                    ? 'bg-gray-100 text-gray-800 rounded-tl-none' 
-                    : 'bg-primary-700 text-white rounded-tr-none'
-                  }`}>
-                  {msg.text}
-                </div>
-              </div>
-            ))}
-            
-            {loading && (
-              <div className="flex gap-3 animate-fade-in">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="bg-gray-100 rounded-2xl rounded-tl-none p-4">
-                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                </div>
-              </div>
-            )}
-            
-            <div ref={messagesEndRef} />
-          </div>
-          
-          {/* Quick Questions */}
-          {messages.length < 3 && (
-            <div className="px-4 pb-3">
-              <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-                <Sparkles className="w-3 h-3" />
-                {lang === 'en' ? 'Try asking:' : 'पूछने का प्रयास करें:'}
+        <div className="kb-status">
+          <span className="kb-dot" />
+          Active
+        </div>
+      </header>
+
+      {/* Pipeline Step Bar */}
+      <div className="kb-pipeline">
+        {PIPELINE_STEPS.map((step, i) => (
+          <span key={step.id}>
+            <span className={[
+              "kb-step",
+              activeStep === step.id ? (pipelineBlocked ? "blocked" : "active") : "",
+            ].join(" ")}>
+              <span className="kb-step-dot" />
+              {step.label}
+            </span>
+            {i < PIPELINE_STEPS.length - 1 && <span className="kb-sep">›</span>}
+          </span>
+        ))}
+      </div>
+
+      {/* Messages */}
+      <div className="kb-messages">
+
+        {/* Welcome */}
+        {messages.length === 0 && (
+          <div className="kb-msg bot">
+            <div className="kb-avatar">🌱</div>
+            <div className="kb-bubble">
+              <strong>नमस्ते! Welcome to KrishiBot 🌾</strong>
+              <p>
+                I'm your agricultural AI by <strong>KrishiDrishti AI</strong>.
+                Ask me about crops, soil, pests, irrigation, or farming schemes.
               </p>
-              <div className="flex flex-wrap gap-2">
-                {quickQuestions[lang].map((q, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSend(q)}
-                    className="text-xs bg-blue-50 text-blue-700 px-3 py-2 rounded-full hover:bg-blue-100 transition-colors"
-                  >
-                    {q}
-                  </button>
+              <div className="kb-chips">
+                {SUGGESTIONS.map((s) => (
+                  <button key={s} className="kb-chip" onClick={() => sendMessage(s)}>{s}</button>
                 ))}
               </div>
             </div>
-          )}
-          
-          {/* Input Area */}
-          <div className="p-4 border-t border-gray-100 bg-white/50">
-            <div className="flex gap-3">
-              <button 
-                className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0"
-                title="Voice input (coming soon)"
-              >
-                <Mic className="w-5 h-5 text-gray-600" />
-              </button>
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder={t.askQuestion}
-                  className="w-full p-3 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
-                />
-              </div>
-              <button 
-                onClick={() => handleSend()}
-                disabled={!input.trim() || loading}
-                className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-              >
-                <Send className="w-5 h-5 text-white" />
-              </button>
+          </div>
+        )}
+
+        {/* Chat messages */}
+        {messages.map((msg, i) => (
+          <div key={i} className={`kb-msg ${msg.role === "user" ? "user" : "bot"}`}>
+            <div className="kb-avatar">
+              {msg.role === "user" ? "You" : "🌱"}
+            </div>
+            <div className={["kb-bubble", msg.blocked ? "blocked" : "", msg.error ? "error" : ""].join(" ")}>
+              {msg.content.split("\n").map((line, j) => (
+                <span key={j}>{line}<br /></span>
+              ))}
             </div>
           </div>
-        </div>
+        ))}
+
+        {/* Typing indicator */}
+        {loading && (
+          <div className="kb-msg bot">
+            <div className="kb-avatar">🌱</div>
+            <div className="kb-bubble">
+              <div className="kb-typing">
+                <span /><span /><span />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={bottomRef} />
       </div>
+
+      {/* Input */}
+      <div className="kb-input-area">
+        <textarea
+          className="kb-textarea"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask about crops, soil, pests, irrigation..."
+          rows={1}
+          disabled={loading}
+        />
+        <button
+          className="kb-send"
+          onClick={() => sendMessage()}
+          disabled={loading || !input.trim()}
+        >
+          ➤
+        </button>
+      </div>
+      <p className="kb-footer">KrishiDrishti AI · Answers agriculture questions only</p>
     </div>
-  )
+  );
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
