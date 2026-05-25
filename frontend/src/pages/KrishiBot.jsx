@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import "../App.css";
 
+import { useLanguage } from "../context/LanguageContext";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-const SUGGESTIONS = [
+const SUGGESTIONS_EN = [
   "Best crops for black soil?",
   "How to treat aphids on wheat?",
   "NPK ratio for tomatoes?",
@@ -11,7 +13,16 @@ const SUGGESTIONS = [
   "Drip vs sprinkler irrigation?",
 ];
 
+const SUGGESTIONS_HI = [
+  "काली मिट्टी के लिए सबसे अच्छे फसल कौन-से हैं?",
+  "गेहूं में माहू/एफिड्स (aphids) का इलाज कैसे करें?",
+  "टमाटर के लिए NPK अनुपात क्या होना चाहिए?",
+  "पीएम-किसान योजना क्या है?",
+  "ड्रिप बनाम स्प्रिंकलर सिंचाई में क्या अंतर है?",
+];
+
 export default function KrishiBot() {
+  const { lang } = useLanguage();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -107,17 +118,28 @@ export default function KrishiBot() {
         </header>
 
         <div className="kb-messages">
+          {/* Suggestions should only show on empty chat; never stop permanently after questions */}
           {messages.length === 0 && (
             <div className="kb-msg bot">
               <div className="kb-avatar">AI</div>
               <div className="kb-bubble">
-                <strong>Namaste! Welcome to KrishiBot.</strong>
+                <strong>{lang === "hi" ? "नमस्ते! KrishiBot में आपका स्वागत है।" : "Namaste! Welcome to KrishiBot."}</strong>
                 <p>
-                  I am your agricultural AI by <strong>KrishiDrishti AI</strong>.
-                  Ask me about crops, soil, pests, irrigation, or farming schemes.
+                  {lang === "hi" ? (
+                    <>
+                      मैं <strong>KrishiDrishti AI</strong> का कृषि AI हूँ।
+                      <br />
+                      फसलों, मिट्टी, कीट, सिंचाई या सरकारी योजनाओं के बारे में पूछें।
+                    </>
+                  ) : (
+                    <>
+                      I am your agricultural AI by <strong>KrishiDrishti AI</strong>.
+                      Ask me about crops, soil, pests, irrigation, or farming schemes.
+                    </>
+                  )}
                 </p>
                 <div className="kb-chips">
-                  {SUGGESTIONS.map((suggestion) => (
+                  {(lang === "hi" ? SUGGESTIONS_HI : SUGGESTIONS_EN).map((suggestion) => (
                     <button
                       className="kb-chip"
                       key={suggestion}
@@ -172,7 +194,7 @@ export default function KrishiBot() {
             disabled={loading}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask about crops, soil, pests, irrigation..."
+            placeholder={lang === "hi" ? "फसल, मिट्टी, कीट, सिंचाई के बारे में पूछें..." : "Ask about crops, soil, pests, irrigation..."}
             rows={1}
             value={input}
           />
