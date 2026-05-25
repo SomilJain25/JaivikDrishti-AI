@@ -9,6 +9,8 @@ import sys
 import logging
 import time
 from typing import Optional, List
+
+from groq import Groq
 from app.auth import verify_api_key
 from fastapi import Depends
 from slowapi.errors import RateLimitExceeded
@@ -22,7 +24,8 @@ from app.metrics import record_error
 from monitoring.prediction_logger import prediction_logger
 from versioning.model_registry import registry
 from dotenv import load_dotenv
-import openai
+
+
 from app.knowledge_base import KNOWLEDGE_BASE
 from app.topic_filter import is_agriculture_question
 
@@ -567,9 +570,9 @@ async def chat(request: ChatRequest):
             )
 
         response = client.chat.completions.create(
-            model="gpt-4o",
-            max_tokens=500,
-            messages=messages
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            max_tokens=500
         )
 
         return ChatResponse(
@@ -627,13 +630,15 @@ if __name__ == "__main__":
     )
 
 #chatbot
+#chatbot
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 client = None
 
-if OPENAI_API_KEY:
-    client = openai.OpenAI(
-        api_key=OPENAI_API_KEY
+if GROQ_API_KEY:
+    
+    client = Groq(
+        api_key=os.getenv("GROQ_API_KEY")
     )
