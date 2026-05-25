@@ -232,6 +232,59 @@ Rules:
 - Mention Indian crops/schemes if relevant
 """
 
+
+def build_fallback_reply(message: str):
+    lower = message.lower()
+
+    if any(word in lower for word in ["potato", "potatoes"]):
+        return (
+            "Potato grows underground because the part we eat is a tuber, not a fruit. "
+            "The plant sends swollen underground stems into the soil, where they store "
+            "food made by the leaves. Keeping tubers underground also protects them "
+            "from sunlight, which can turn them green and bitter."
+        )
+
+    if "black soil" in lower or "black cotton soil" in lower:
+        return (
+            "Black soil is good for cotton, soybean, sorghum, maize, pulses, and some "
+            "oilseeds. It holds water well, so avoid waterlogging and add organic matter "
+            "to improve soil structure."
+        )
+
+    if "aphid" in lower or "aphids" in lower:
+        return (
+            "For aphids, start with yellow sticky traps and neem oil spray at about 5 ml "
+            "per litre of water. Check the underside of leaves, avoid excess nitrogen, "
+            "and use a recommended insecticide only if infestation is heavy."
+        )
+
+    if "npk" in lower or "fertilizer" in lower or "fertiliser" in lower:
+        return (
+            "NPK needs depend on crop and soil test results. As a general rule, apply "
+            "organic manure before sowing and split nitrogen doses instead of applying "
+            "all at once. For accurate advice, use a Soil Health Card or local KVK test."
+        )
+
+    if "pm-kisan" in lower or "pm kisan" in lower:
+        return (
+            "PM-KISAN provides financial support to eligible farmer families through "
+            "direct bank transfer. Farmers should check land record, Aadhaar, and bank "
+            "details on the official PM-KISAN portal or at the local agriculture office."
+        )
+
+    if "drip" in lower or "sprinkler" in lower:
+        return (
+            "Drip irrigation is best for vegetables, orchards, and row crops because it "
+            "saves water near the root zone. Sprinkler irrigation is useful for wheat, "
+            "groundnut, fodder, and uneven land, but avoid it when leaf diseases are high."
+        )
+
+    return (
+        "I can help with crops, soil, pests, irrigation, fertilizers, and Indian farming "
+        "schemes. Please share the crop name, soil type, season, and the problem you are "
+        "seeing so I can give more specific guidance."
+    )
+
 # ─────────────────────────────────────────────────────────────
 # Routes
 # ─────────────────────────────────────────────────────────────
@@ -522,7 +575,7 @@ async def chat(request: ChatRequest):
         return ChatResponse(
             blocked=True,
             pipeline_step="topic_filter",
-            reply="Please ask agriculture-related questions only 🌾"
+            reply="Please ask agriculture-related questions only."
         )
 
     context = build_context(message)
@@ -557,10 +610,11 @@ async def chat(request: ChatRequest):
     try:
 
         if client is None:
-            raise HTTPException(
-                status_code=500,
-                detail="OpenAI API key not configured"
-    )
+            return ChatResponse(
+                blocked=False,
+                pipeline_step="local_fallback",
+                reply=build_fallback_reply(message)
+            )
 
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -574,11 +628,16 @@ async def chat(request: ChatRequest):
             reply=response.choices[0].message.content
         )
 
-    except Exception as e:
+    except HTTPException:
+        raise
 
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
+    except Exception as e:
+        logger.warning(f"KrishiBot OpenAI fallback used: {e}")
+
+        return ChatResponse(
+            blocked=False,
+            pipeline_step="local_fallback",
+            reply=build_fallback_reply(message)
         )
 
 

@@ -3,14 +3,6 @@ import "../App.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-const PIPELINE_STEPS = [
-  { id: "input", label: "Question" },
-  { id: "filter", label: "Topic filter" },
-  { id: "context", label: "Context builder" },
-  { id: "llm", label: "ChatGPT" },
-  { id: "answer", label: "Answer" },
-];
-
 const SUGGESTIONS = [
   "Best crops for black soil?",
   "How to treat aphids on wheat?",
@@ -23,8 +15,6 @@ export default function KrishiBot() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeStep, setActiveStep] = useState(null);
-  const [pipelineBlocked, setPipelineBlocked] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -37,15 +27,9 @@ export default function KrishiBot() {
 
     setInput("");
     setLoading(true);
-    setPipelineBlocked(false);
 
     const newMessages = [...messages, { role: "user", content: userText }];
     setMessages(newMessages);
-
-    setActiveStep("input");
-    await delay(300);
-    setActiveStep("filter");
-    await delay(400);
 
     try {
       const res = await fetch(`${API_URL}/chat`, {
@@ -61,53 +45,38 @@ export default function KrishiBot() {
       });
 
       if (!res.ok) {
-        let detail = "Server error";
-        try {
-          const err = await res.json();
-          detail = err.detail || err.error || detail;
-        } catch {
-          detail = await res.text();
-        }
+        const detail = await readApiError(res);
         throw new Error(detail);
       }
 
       const data = await res.json();
 
       if (data.blocked) {
-        setPipelineBlocked(true);
-        setActiveStep("filter");
         setMessages([
           ...newMessages,
           { role: "assistant", content: data.reply, blocked: true },
         ]);
-        await delay(1500);
-        setActiveStep(null);
-        setPipelineBlocked(false);
         return;
       }
-
-      setActiveStep("context");
-      await delay(400);
-      setActiveStep("llm");
 
       setMessages([
         ...newMessages,
         { role: "assistant", content: data.reply || "I could not generate a reply." },
       ]);
-
-      setActiveStep("answer");
-      await delay(1200);
-      setActiveStep(null);
     } catch (err) {
+      const message =
+        err instanceof TypeError
+          ? "Cannot connect to the FastAPI backend at http://localhost:8000."
+          : err.message;
+
       setMessages([
         ...newMessages,
         {
           role: "assistant",
-          content: `Error: ${err.message}. Make sure the FastAPI backend is running on port 8000.`,
+          content: `Error: ${message}`,
           error: true,
         },
       ]);
-      setActiveStep(null);
     } finally {
       setLoading(false);
     }
@@ -136,25 +105,6 @@ export default function KrishiBot() {
             Active
           </div>
         </header>
-
-        <div className="kb-pipeline" aria-label="KrishiBot response pipeline">
-          {PIPELINE_STEPS.map((step, index) => (
-            <span className="kb-pipeline-item" key={step.id}>
-              <span
-                className={[
-                  "kb-step",
-                  activeStep === step.id ? (pipelineBlocked ? "blocked" : "active") : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                <span className="kb-step-dot" />
-                {step.label}
-              </span>
-              {index < PIPELINE_STEPS.length - 1 && <span className="kb-sep">/</span>}
-            </span>
-          ))}
-        </div>
 
         <div className="kb-messages">
           {messages.length === 0 && (
@@ -241,6 +191,16 @@ export default function KrishiBot() {
   );
 }
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+async function readApiError(response) {
+  const fallback = response.statusText || `Request failed with status ${response.status}`;
+
+  try {
+    const data = await response.json();
+    if (typeof data.detail === "string") return data.detail;
+    if (typeof data.error === "string") return data.error;
+    return fallback;
+  } catch {
+    const text = await response.text();
+    return text || fallback;
+  }
 }
