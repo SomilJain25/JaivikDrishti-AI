@@ -4,7 +4,7 @@ import CropScan from '../pages/DrishtiScan'
 import MandiPredict from '../pages/MandiPredict'
 import YieldSense from '../pages/YieldSense'
 import KrishiBot from '../pages/KrishiBot'
-
+import UnifiedDashboard from "../pages/UnifiedDashboard";
 export default function AppRoutes() {
   return (
     <Routes>
@@ -14,6 +14,7 @@ export default function AppRoutes() {
       <Route path="/yield-sense" element={<YieldSense />} />
       <Route path="/krishi-bot" element={<KrishiBot />} />
       <Route path="/krishibot" element={<KrishiBot />} />
+      <Route path="/dashboard" element={<UnifiedDashboard/>} />
     </Routes>
   )
 }
