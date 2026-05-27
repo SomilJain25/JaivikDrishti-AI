@@ -43,6 +43,30 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from .predict import CropScanPredictor, TREATMENT_DATABASE
 
 
+
+#chatbot
+load_dotenv()
+# MandiPredict config
+
+AGMARKNET_URL = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
+
+AGMARKNET_KEY = os.getenv(
+    "DATA_GOV_API_KEY",
+    "579b464db66ec23bdd000001cdd3946e44ce4aeb825d4c8571490b3"
+)
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+client = None
+
+if GROQ_API_KEY:
+    
+    client = Groq(
+        api_key=os.getenv("GROQ_API_KEY")
+    )
+
+
+
 # ─────────────────────────────────────────────────────────────
 # Logging
 # ─────────────────────────────────────────────────────────────
@@ -271,13 +295,14 @@ async def root():
         "platform": "JaivikDrishti AI",
         "model_loaded": predictor is not None,
         "version": "1.0.0",
-        "endpoints": [
-            "POST /predict",
-            "POST /predict/gradcam",
-            "GET /diseases",
-            "GET /treatments/{disease_name}",
-            "GET /models",
-            "GET /docs"
+        "endpoints":[
+        "POST /predict",
+        "POST /predict/gradcam",
+        "POST /chat",
+        "GET /mandi/predict",
+        "GET /markets",
+        "GET /models",
+        "GET /docs"
         ]
     }
 async def fetch_mandi_prices(
@@ -312,8 +337,8 @@ async def fetch_mandi_prices(
             if data.get("records"):
                 return data["records"]
 
-    except:
-        pass
+    except Exception as e:
+        logger.error(f"Mandi API error: {e}")
 
 
     return [
@@ -340,38 +365,45 @@ def preprocess_prices(records):
 
 
     if len(prices)==0:
-    prices=[2000+i*10 for i in range(30)]
+        prices=[2000+i*10 for i in range(30)]
 
-arr=np.array(prices,dtype=np.float32)
+    arr=np.array(prices,dtype=np.float32)
 
-mn=arr.min()
-mx=arr.max()
+    mn=arr.min()
+    mx=arr.max()
 
-if mx==mn:
-    mx=mn+1
+    if mx==mn:
+        mx=mn+1
 
-normalized=(arr-mn)/(mx-mn)
+    normalized=(arr-mn)/(mx-mn)
 
-return normalized,float(mn),float(mx)
-
+    return normalized,float(mn),float(mx)
 
 def lstm_predict(
     normalized,
     forecast_days=7
 ):
 
-    last=normalized[-1]
+    last = float(normalized[-1])
 
-    preds=[]
+    preds = []
 
     for i in range(forecast_days):
 
-        preds.append(
-            min(
-                last+(i*0.02),
-                1
-            )
+        noise = np.random.normal(
+            0,
+            0.01
         )
+
+        pred = min(
+            max(
+                last + (i * 0.02) + noise,
+                0
+            ),
+            1
+        )
+
+        preds.append(pred)
 
     return np.array(preds)
 
@@ -850,24 +882,4 @@ if __name__ == "__main__":
         reload=True
     )
 
-#chatbot
-#chatbot
-load_dotenv()
-# MandiPredict config
 
-AGMARKNET_URL = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
-
-AGMARKNET_KEY = os.getenv(
-    "DATA_GOV_API_KEY",
-    "579b464db66ec23bdd000001cdd3946e44ce4aeb825d4c8571490b3"
-)
-
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-client = None
-
-if GROQ_API_KEY:
-    
-    client = Groq(
-        api_key=os.getenv("GROQ_API_KEY")
-    )
