@@ -152,15 +152,15 @@ class PredictionResponse(BaseModel):
     confidence: Optional[float] = None
     confidence_percent: Optional[str] = None
 
-    treatment: Optional[list] = []
-    organic_treatment: Optional[list] = []
-    prevention: Optional[list] = []
+    treatment: List = Field(default_factory=list)
+    organic_treatment: List = Field(default_factory=list)
+    prevention: List = Field(default_factory=list)
+
 
     is_uncertain: Optional[bool] = None
     uncertainty_warning: Optional[str] = None
 
-    top_predictions: List[TopPrediction] = []
-
+    top_predictions: List[TopPrediction] = Field(default_factory=list)
     processing_time_ms: Optional[float] = None
     model_version: Optional[str] = None
     error: Optional[str] = None
@@ -176,7 +176,7 @@ class Message(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
-    history: Optional[List[Message]] = []
+    history: List[Message] = Field(default_factory=list)
 
 
 class ChatResponse(BaseModel):
@@ -327,11 +327,12 @@ async def fetch_mandi_prices(
 
         async with httpx.AsyncClient() as client:
 
-            response=await client.get(
+            response = await client.get(
                 AGMARKNET_URL,
-                params=params
+                params=params,
+                timeout=10
             )
-
+            response.raise_for_status()
             data=response.json()
 
             if data.get("records"):
@@ -725,7 +726,7 @@ async def chat(request: ChatRequest):
         if client is None:
             raise HTTPException(
                 status_code=503,
-                detail="AI provider is not configured. Please set OPENAI_API_KEY in the backend .env file."
+                detail="AI provider is not configured. Please set GROQ_API_KEY in .env"
             )
 
         response = client.chat.completions.create(
@@ -744,8 +745,8 @@ async def chat(request: ChatRequest):
         raise
 
     except Exception as e:
-        logger.error(f"KrishiBot OpenAI error: {e}")
-
+        logger.error(f"KrishiBot Groq error: {e}")
+        
         raise HTTPException(
             status_code=502,
             detail=f"AI provider error: {str(e)}"
@@ -765,11 +766,12 @@ days:int=Query(7)
 
 ):
 
-    records=await fetch_mandi_prices(
-        commodity,
-        market,
-        state
-    )
+    records = await fetch_mandi_prices(
+    commodity,
+    market,
+    state,
+    days
+)
 
     normalized,mn,mx=preprocess_prices(
         records
