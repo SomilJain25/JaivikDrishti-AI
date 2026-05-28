@@ -50,10 +50,7 @@ load_dotenv()
 
 AGMARKNET_URL = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
 
-AGMARKNET_KEY = os.getenv(
-    "DATA_GOV_API_KEY",
-    "579b464db66ec23bdd000001cdd3946e44ce4aeb825d4c8571490b3"
-)
+AGMARKNET_KEY = os.getenv("DATA_GOV_API_KEY")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -306,40 +303,54 @@ async def root():
         ]
     }
 async def fetch_mandi_prices(
-    commodity:str,
-    market:str,
-    state:str,
-    days:int=60
+    commodity: str,
+    market: str,
+    state: str,
+    days: int = 60
 ):
-
     try:
 
-        params={
+        if not AGMARKNET_KEY:
+            raise Exception("DATA_GOV_API_KEY missing")
 
-        "api-key":AGMARKNET_KEY,
-        "format":"json",
-        "filters[commodity]":commodity,
-        "filters[market]":market,
-        "filters[state]":state,
-        "limit":days
-
+        params = {
+            "api-key": AGMARKNET_KEY,
+            "format": "json",
+            "filters[commodity]": commodity,
+            "filters[market]": market,
+            "filters[state]": state,
+            "limit": days
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10) as client:
 
             response = await client.get(
                 AGMARKNET_URL,
-                params=params,
-                timeout=10
+                params=params
             )
-            response.raise_for_status()
-            data=response.json()
 
-            if data.get("records"):
-                return data["records"]
+            response.raise_for_status()
+
+            data = response.json()
+
+            logger.info(f"Mandi API response: {data}")
+
+            records = data.get("records", [])
+
+            if len(records) == 0:
+                raise Exception(
+                    f"No data found for {commodity}"
+                )
+
+            return records
 
     except Exception as e:
-        logger.error(f"Mandi API error: {e}")
+        logger.error(f"Mandi API error: {str(e)}")
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Mandi API failed: {str(e)}"
+        )
 
 
     return [
@@ -765,6 +776,10 @@ state:str=Query("Madhya Pradesh"),
 days:int=Query(7)
 
 ):
+    
+    commodity = commodity.title()
+    market = market.title()
+    state = state.title()
 
     records = await fetch_mandi_prices(
     commodity,
