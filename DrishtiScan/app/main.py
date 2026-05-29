@@ -369,7 +369,7 @@ async def fetch_mandi_prices(
         logger.error(f"Mandi API error: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Mandi API failed: {str(e)}"
+            detail=f"Mandi API failed: {type(e).__name__}: {repr(e)}"
         )
 
 
