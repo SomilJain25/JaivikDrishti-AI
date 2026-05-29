@@ -309,88 +309,68 @@ async def fetch_mandi_prices(
     days: int = 60
 ):
     try:
-
         if not AGMARKNET_KEY:
-            raise Exception("DATA_GOV_API_KEY missing")
+            # Render environment variable missing / not loaded
+            raise RuntimeError("DATA_GOV_API_KEY missing (AGMARKNET_KEY is empty)")
 
         params = {
             "api-key": AGMARKNET_KEY,
             "format": "json",
-            "limit": days
-}
+            "limit": days,
+        }
 
         # Add filters only if values exist
         if commodity:
             params["filters[commodity]"] = commodity
-
         if state:
             params["filters[state]"] = state
-
         if market:
             params["filters[market]"] = market
-        
-        
 
         logger.info(f"Fetching mandi data with params: {params}")
 
         async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.get(AGMARKNET_URL, params=params)
+            logger.info(f"AGMARKNET Status Code: {response.status_code}")
 
-            response = await client.get(
-                AGMARKNET_URL,
-                params=params
-            )
-
-            logger.info(f"Status Code: {response.status_code}")
-            logger.info(f"Response Text: {response.text}")
-
-            response.raise_for_status()
+            # Capture upstream detail in logs + in error message
+            if response.status_code >= 400:
+                raise RuntimeError(f"AGMARKNET HTTP {response.status_code}: {response.text[:500]}")
 
             data = response.json()
-
             records = data.get("records", [])
-
-            logger.info(f"Records found: {len(records)}")
+            logger.info(f"Records found (filtered): {len(records)}")
 
             if len(records) == 0:
-
-                logger.warning("No filtered records found. Fetching general data.")
-
+                logger.warning("No filtered records found. Fetching general data (no filters).")
                 fallback_params = {
                     "api-key": AGMARKNET_KEY,
                     "format": "json",
-                    "limit": 30
-    }
+                    "limit": 30,
+                }
+                fallback_response = await client.get(AGMARKNET_URL, params=fallback_params)
+                logger.info(f"AGMARKNET Status Code (fallback): {fallback_response.status_code}")
 
-            response = await client.get(
-                AGMARKNET_URL,
-                params=fallback_params
-            )
+                if fallback_response.status_code >= 400:
+                    raise RuntimeError(
+                        f"AGMARKNET HTTP {fallback_response.status_code} (fallback): {fallback_response.text[:500]}"
+                    )
 
-            data = response.json()
+                data = fallback_response.json()
+                records = data.get("records", [])
+                logger.info(f"Records found (fallback): {len(records)}")
 
-            records = data.get("records", [])
-
-            if len(records) == 0:
-                raise Exception("No mandi records available")
+                if len(records) == 0:
+                    raise RuntimeError("No mandi records available (even after fallback)")
 
             return records
 
     except Exception as e:
-
         logger.error(f"Mandi API error: {str(e)}")
-
         raise HTTPException(
             status_code=500,
             detail=f"Mandi API failed: {str(e)}"
         )
-
-
-    return [
-        {
-            "modal_price":2000+i*10
-        }
-        for i in range(30)
-    ]
 
 
 def preprocess_prices(records):
