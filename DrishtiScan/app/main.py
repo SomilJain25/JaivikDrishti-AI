@@ -317,34 +317,43 @@ async def fetch_mandi_prices(
             "api-key": AGMARKNET_KEY,
             "format": "json",
             "filters[commodity]": commodity,
-            "filters[market]": market,
             "filters[state]": state,
             "limit": days
         }
 
-        async with httpx.AsyncClient(timeout=10) as client:
+        # Optional market filter
+        if market:
+            params["filters[market]"] = market
+
+        logger.info(f"Fetching mandi data with params: {params}")
+
+        async with httpx.AsyncClient(timeout=20) as client:
 
             response = await client.get(
                 AGMARKNET_URL,
                 params=params
             )
 
+            logger.info(f"Status Code: {response.status_code}")
+            logger.info(f"Response Text: {response.text}")
+
             response.raise_for_status()
 
             data = response.json()
 
-            logger.info(f"Mandi API response: {data}")
-
             records = data.get("records", [])
+
+            logger.info(f"Records found: {len(records)}")
 
             if len(records) == 0:
                 raise Exception(
-                    f"No data found for {commodity}"
+                    f"No mandi data found for {commodity} in {state}"
                 )
 
             return records
 
     except Exception as e:
+
         logger.error(f"Mandi API error: {str(e)}")
 
         raise HTTPException(
