@@ -143,28 +143,40 @@ export const checkHealth = async () => {
  * Get crop price prediction (still mock — no backend endpoint)
  */
 export const predictPrice = async (crop, state) => {
-  await new Promise((r) => setTimeout(r, 1000));
-  // Keep your existing mock here — replace when you add /price endpoint
-  const basePrices = { wheat: 2200, rice: 2100, cotton: 6200, sugarcane: 320, potato: 1800, tomato: 2500, onion: 3200, soybean: 4500 };
-  const stateMultiplier = { Punjab: 1.1, Haryana: 1.08, UP: 0.95, MP: 0.92, Maharashtra: 1.0, Gujarat: 1.05, Karnataka: 0.98, AP: 1.02, Telangana: 1.03, Bihar: 0.9 };
-  const base = basePrices[crop] || 2000;
-  const mult = stateMultiplier[state] || 1.0;
+  // Backend endpoint: GET /mandi/predict?commodity=...&market=...&state=...
+  // NOTE: backend expects titles (e.g., Wheat, Madhya Pradesh). We send sensible defaults.
+  const commodity = (crop || "").toString().trim();
+  const stateName = (state || "").toString().trim();
+
+  if (!commodity || !stateName) {
+    throw new Error('crop and state are required');
+  }
+
+  // Your UI only captures state; backend also needs a market.
+  // Use a fixed default market; you can later replace with a state→market mapping.
+  const market = 'Indore';
+
+  const res = await fetch(
+    `${BASE_URL}/mandi/predict?commodity=${encodeURIComponent(commodity)}&market=${encodeURIComponent(market)}&state=${encodeURIComponent(stateName)}&days=6`
+  );
+
+  const data = await handleResponse(res);
+
+  // Map backend response to existing UI shape
+  const priceHistory = (data.predicted_days || []).map((p) => ({
+    month: p.date,
+    price: p.price,
+  }));
+
   return {
     success: true,
-    currentPrice: Math.round(base * mult),
-    predictedPrice: Math.round(base * mult * 1.08),
-    trend: "up",
-    trendPercent: 8.5,
-    bestSellMonth: "December",
-    marketDemand: "High",
-    priceHistory: [
-      { month: "Jan", price: Math.round(base * mult * 0.92) },
-      { month: "Feb", price: Math.round(base * mult * 0.95) },
-      { month: "Mar", price: Math.round(base * mult * 0.98) },
-      { month: "Apr", price: Math.round(base * mult * 1.0) },
-      { month: "May", price: Math.round(base * mult * 1.02) },
-      { month: "Jun", price: Math.round(base * mult * 1.05) },
-    ],
+    currentPrice: data.current_price,
+    predictedPrice: priceHistory.length ? priceHistory[priceHistory.length - 1].price : data.current_price,
+    trend: data.trend,
+    trendPercent: data.confidence != null ? Number(data.confidence) : 0,
+    bestSellMonth: priceHistory.length ? priceHistory[0].month : '',
+    marketDemand: data.source || 'AGMARKNET',
+    priceHistory,
   };
 };
 

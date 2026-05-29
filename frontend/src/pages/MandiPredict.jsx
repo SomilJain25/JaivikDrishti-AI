@@ -25,10 +25,13 @@ export default function MandiPredict() {
   const handlePredict = async () => {
     if (!crop || !state) return
     setLoading(true)
+    // Clear old UI results while backend is running
+    setResult(null)
     try {
       const data = await predictPrice(crop, state)
       setResult(data)
     } catch (error) {
+      console.error(error)
       alert('Prediction failed')
     } finally {
       setLoading(false)
