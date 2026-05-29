@@ -316,14 +316,20 @@ async def fetch_mandi_prices(
         params = {
             "api-key": AGMARKNET_KEY,
             "format": "json",
-            "filters[commodity]": commodity,
-            "filters[state]": state,
             "limit": days
-        }
+}
 
-        # Optional market filter
+        # Add filters only if values exist
+        if commodity:
+            params["filters[commodity]"] = commodity
+
+        if state:
+            params["filters[state]"] = state
+
         if market:
             params["filters[market]"] = market
+        
+        
 
         logger.info(f"Fetching mandi data with params: {params}")
 
@@ -346,9 +352,26 @@ async def fetch_mandi_prices(
             logger.info(f"Records found: {len(records)}")
 
             if len(records) == 0:
-                raise Exception(
-                    f"No mandi data found for {commodity} in {state}"
-                )
+
+                logger.warning("No filtered records found. Fetching general data.")
+
+                fallback_params = {
+                    "api-key": AGMARKNET_KEY,
+                    "format": "json",
+                    "limit": 30
+    }
+
+            response = await client.get(
+                AGMARKNET_URL,
+                params=fallback_params
+            )
+
+            data = response.json()
+
+            records = data.get("records", [])
+
+            if len(records) == 0:
+                raise Exception("No mandi records available")
 
             return records
 
