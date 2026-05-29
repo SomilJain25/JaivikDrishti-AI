@@ -13,7 +13,7 @@ import { useLanguage } from '../context/LanguageContext'
 import { predictPrice } from '../services/api'
 
 const crops = ['wheat', 'rice', 'cotton', 'sugarcane', 'potato', 'tomato', 'onion', 'soybean']
-const states = ['Punjab', 'Haryana', 'UP', 'MP', 'Maharashtra', 'Gujarat', 'Karnataka', 'AP', 'Telangana', 'Bihar']
+const states = ['Punjab', 'Haryana', 'UP', 'Madhya Pradesh', 'Maharashtra', 'Gujarat', 'Karnataka', 'AP', 'Telangana', 'Bihar']
 
 export default function MandiPredict() {
   const { lang, t } = useLanguage()
