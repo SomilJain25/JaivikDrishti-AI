@@ -4,6 +4,7 @@ CropScan - JaivikDrishti AI Module
 FastAPI Backend — REST API for crop disease detection
 """
 
+from asyncio import timeout
 import os
 import sys
 import logging
@@ -329,7 +330,12 @@ async def fetch_mandi_prices(
 
         logger.info(f"Fetching mandi data with params: {params}")
 
-        async with httpx.AsyncClient(timeout=20) as client:
+        timeout = httpx.Timeout(
+            timeout=60.0,
+            connect=20.0
+        )
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(AGMARKNET_URL, params=params)
             logger.info(f"AGMARKNET Status Code: {response.status_code}")
 
