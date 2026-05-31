@@ -315,29 +315,32 @@ async def fetch_mandi_prices(
             raise RuntimeError("DATA_GOV_API_KEY missing (AGMARKNET_KEY is empty)")
 
         params = {
-            "api-key": AGMARKNET_KEY,
-            "format": "json",
-            "limit": days,
-        }
+        "api-key": AGMARKNET_KEY,
+        "format": "json",
+        "limit": 20,
+    }
 
-        # Add filters only if values exist
         if commodity:
             params["filters[commodity]"] = commodity
+
         if state:
             params["filters[state]"] = state
-        if market:
-            params["filters[market]"] = market
+
+    # DON'T send market filter to AGMARKNET
+    # We'll filter locally later
 
         logger.info(f"Fetching mandi data with params: {params}")
 
         timeout = httpx.Timeout(
-            timeout=60.0,
-            connect=20.0
-        )
+            timeout=120.0,
+            connect=30.0
+)
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(AGMARKNET_URL, params=params)
             logger.info(f"AGMARKNET Status Code: {response.status_code}")
+            logger.info(f"Response received from AGMARKNET")
+            logger.info(f"Response length: {len(response.text)}")
 
             # Capture upstream detail in logs + in error message
             if response.status_code >= 400:
@@ -345,6 +348,18 @@ async def fetch_mandi_prices(
 
             data = response.json()
             records = data.get("records", [])
+
+            if market:
+                market_lower = market.lower()
+
+                matching_records = [
+                    r for r in records
+                    if market_lower in r.get("market", "").lower()
+                ]
+
+                if matching_records:
+                    records = matching_records
+
             logger.info(f"Records found (filtered): {len(records)}")
 
             if len(records) == 0:
