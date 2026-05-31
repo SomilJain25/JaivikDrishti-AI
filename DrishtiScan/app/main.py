@@ -795,9 +795,9 @@ days:int=Query(7)
 
 ):
     
-    commodity = commodity.title()
-    market = market.title()
-    state = state.title()
+    # commodity = commodity.title()
+    # market = market.title()
+    # state = state.title()
 
     records = await fetch_mandi_prices(
     commodity,
