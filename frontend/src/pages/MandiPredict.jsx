@@ -1,4 +1,13 @@
 import { useState } from 'react'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid
+} from "recharts";
 import { 
   TrendingUp, 
   MapPin, 
@@ -149,29 +158,35 @@ export default function MandiPredict() {
             <div className="glass-card p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-accent-500" />
-                {lang === 'en' ? 'Price Trend (6 Months)' : 'कीमत रुझान (6 महीने)'}
+                Price Trend (6 Months)
               </h3>
-              <div className="h-64 bg-gray-50 rounded-xl p-4 relative overflow-hidden">
-                {/* Simple bar chart visualization */}
-                <div className="flex items-end justify-between h-full gap-2">
-                  {result.priceHistory.map((item, idx) => {
-                    const maxPrice = Math.max(...result.priceHistory.map(p => p.price))
-                    const height = (item.price / maxPrice) * 100
-                    return (
-                      <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                        <div className="text-xs font-medium text-gray-600">₹{item.price}</div>
-                        <div 
-                          className="w-full bg-gradient-to-t from-primary-700 to-green-400 rounded-t-lg transition-all duration-1000"
-                          style={{
-                            height: `${height}%`,
-                            minHeight: "20px"
-                          }}
-                        />
-                        <div className="text-xs text-gray-500">{item.month}</div>
-                      </div>
-                    )
-                  })}
-                </div>
+
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={result.priceHistory}>
+                    <CartesianGrid strokeDasharray="3 3" />
+
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 12 }}
+                    />
+
+                    <YAxis />
+
+                    <Tooltip
+                      formatter={(value) => [`₹${value}`, "Price"]}
+                    />
+
+                    <Line
+                      type="monotone"
+                      dataKey="price"
+                      stroke="#16a34a"
+                      strokeWidth={4}
+                      dot={{ r: 5 }}
+                      activeDot={{ r: 8 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </div>
             
