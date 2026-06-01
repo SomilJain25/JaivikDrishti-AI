@@ -162,7 +162,10 @@ export default function MandiPredict() {
                         <div className="text-xs font-medium text-gray-600">₹{item.price}</div>
                         <div 
                           className="w-full bg-gradient-to-t from-primary-700 to-green-400 rounded-t-lg transition-all duration-1000"
-                          style={{ height: `${height}%` }}
+                          style={{
+                            height: `${height}%`,
+                            minHeight: "20px"
+                          }}
                         />
                         <div className="text-xs text-gray-500">{item.month}</div>
                       </div>
