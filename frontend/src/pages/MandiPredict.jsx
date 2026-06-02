@@ -34,10 +34,10 @@ export default function MandiPredict() {
   const handlePredict = async () => {
     if (!crop || !state) return
     setLoading(true)
-    // Clear old UI results while backend is running
     setResult(null)
     try {
       const data = await predictPrice(crop, state)
+      console.log("RESULT =", data)
       setResult(data)
     } catch (error) {
       console.error(error)
@@ -119,8 +119,6 @@ export default function MandiPredict() {
         </div>
         
         {/* Results */}
-        console.log("RESULT =", result)
-
         {result && (
           <div className="space-y-6 animate-slide-up">
             {/* Price Cards */}
@@ -156,7 +154,7 @@ export default function MandiPredict() {
               </div>
             </div>
             
-            {/* Price History Chart Placeholder */}
+            {/* Price History Chart */}
             <div className="glass-card p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-accent-500" />
@@ -168,11 +166,8 @@ export default function MandiPredict() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={result.priceHistory}>
                       <CartesianGrid strokeDasharray="3 3" />
-
                       <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-
                       <YAxis />
-
                       <Tooltip
                         formatter={(value) => {
                           const n = typeof value === 'number' ? value : Number(value)
@@ -180,7 +175,6 @@ export default function MandiPredict() {
                           return [`₹${safe !== null ? safe : '-'}`, 'Price']
                         }}
                       />
-
                       <Line
                         type="monotone"
                         dataKey="price"

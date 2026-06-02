@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { 
   Menu, 
   X, 
@@ -15,8 +14,17 @@ import logo from '../assets/JaivikDrishti_circular.png'
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
+  const [currentPath, setCurrentPath] = useState(window.location.hash.slice(1) || '/')
   const { t } = useLanguage()
-  const location = useLocation()
+  
+  useEffect(() => {
+    const handleHashChange = () => {
+      setCurrentPath(window.location.hash.slice(1) || '/')
+    }
+    
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
   
   const navItems = [
     { path: '/', label: t.home, icon: Home },
@@ -26,14 +34,22 @@ export default function Navbar() {
     { path: '/krishi-bot', label: t.krishiBot, icon: Bot },
   ]
   
-  const isActive = (path) => location.pathname === path
+  const navigate = (path) => {
+    window.location.hash = path
+  }
+  
+  const isActive = (path) => {
+    const normalizedPath = currentPath.toLowerCase()
+    const normalizedCheck = path.toLowerCase()
+    return normalizedPath === normalizedCheck || (path === '/' && (normalizedPath === '' || normalizedPath === '/'))
+  }
   
   return (
     <nav className="sticky top-0 z-50 bg-primary-700 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
+          <a onClick={() => navigate('/')} className="flex items-center gap-2 group cursor-pointer">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-white flex items-center justify-center group-hover:scale-110 transition-transform">
               <img src={logo} alt="JaivikDrishti logo" className="w-full h-full object-cover" />
             </div>
@@ -41,17 +57,17 @@ export default function Navbar() {
               <h1 className="text-white font-bold text-lg leading-tight">JaivikDrishti</h1>
               <p className="text-green-200 text-xs">AI</p>
             </div>
-          </Link>
+          </a>
           
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon
               return (
-                <Link
+                <a
                   key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
+                  onClick={() => navigate(item.path)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer
                     ${isActive(item.path) 
                       ? 'bg-white text-primary-700 shadow-md' 
                       : 'text-green-100 hover:bg-white/10 hover:text-white'
@@ -59,7 +75,7 @@ export default function Navbar() {
                 >
                   <Icon className="w-4 h-4" />
                   {item.label}
-                </Link>
+                </a>
               )
             })}
             <div className="ml-4">
@@ -87,11 +103,13 @@ export default function Navbar() {
             {navItems.map((item) => {
               const Icon = item.icon
               return (
-                <Link
+                <a
                   key={item.path}
-                  to={item.path}
-                  onClick={() => setIsOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
+                  onClick={() => {
+                    navigate(item.path)
+                    setIsOpen(false)
+                  }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer
                     ${isActive(item.path) 
                       ? 'bg-white text-primary-700' 
                       : 'text-green-100 hover:bg-white/10'
@@ -99,7 +117,7 @@ export default function Navbar() {
                 >
                   <Icon className="w-5 h-5" />
                   {item.label}
-                </Link>
+                </a>
               )
             })}
           </div>

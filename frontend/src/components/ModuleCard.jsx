@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 
 export default function ModuleCard({ 
@@ -10,10 +9,14 @@ export default function ModuleCard({
   bgGradient,
   delay = 0 
 }) {
+  const handleClick = () => {
+    window.location.hash = to
+  }
+
   return (
-    <Link
-      to={to}
-      className="group block"
+    <a
+      onClick={handleClick}
+      className="group block cursor-pointer"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className={`relative overflow-hidden rounded-2xl p-6 h-full 
@@ -46,6 +49,6 @@ export default function ModuleCard({
         <div className={`absolute -bottom-4 -right-4 w-24 h-24 rounded-full ${colorClass} opacity-5 
                         group-hover:scale-150 transition-transform duration-500`} />
       </div>
-    </Link>
+    </a>
   )
 }
