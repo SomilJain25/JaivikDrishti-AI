@@ -119,6 +119,8 @@ export default function MandiPredict() {
         </div>
         
         {/* Results */}
+        console.log("RESULT =", result)
+
         {result && (
           <div className="space-y-6 animate-slide-up">
             {/* Price Cards */}
@@ -155,40 +157,47 @@ export default function MandiPredict() {
             </div>
             
             {/* Price History Chart Placeholder */}
-            {/* <div className="glass-card p-6">
+            <div className="glass-card p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-accent-500" />
                 Price Trend (6 Months)
               </h3>
 
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={result.priceHistory}>
-                    <CartesianGrid strokeDasharray="3 3" />
+              {Array.isArray(result?.priceHistory) && result.priceHistory.length > 0 ? (
+                <div style={{ height: 320 }} className="w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={result.priceHistory}>
+                      <CartesianGrid strokeDasharray="3 3" />
 
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fontSize: 12 }}
-                    />
+                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
 
-                    <YAxis />
+                      <YAxis />
 
-                    <Tooltip
-                      formatter={(value) => [`₹${value}`, "Price"]}
-                    />
+                      <Tooltip
+                        formatter={(value) => {
+                          const n = typeof value === 'number' ? value : Number(value)
+                          const safe = Number.isFinite(n) ? n : null
+                          return [`₹${safe !== null ? safe : '-'}`, 'Price']
+                        }}
+                      />
 
-                    <Line
-                      type="monotone"
-                      dataKey="price"
-                      stroke="#16a34a"
-                      strokeWidth={4}
-                      dot={{ r: 5 }}
-                      activeDot={{ r: 8 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div> */}
+                      <Line
+                        type="monotone"
+                        dataKey="price"
+                        stroke="#16a34a"
+                        strokeWidth={4}
+                        dot={{ r: 5 }}
+                        activeDot={{ r: 8 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-10">
+                  No price history available yet.
+                </div>
+              )}
+            </div>
             
             {/* Market Insights */}
             <div className="glass-card p-6">
