@@ -155,7 +155,7 @@ export default function MandiPredict() {
             </div>
             
             {/* Price History Chart Placeholder */}
-            <div className="glass-card p-6">
+            {/* <div className="glass-card p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-accent-500" />
                 Price Trend (6 Months)
@@ -188,7 +188,7 @@ export default function MandiPredict() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-            </div>
+            </div> */}
             
             {/* Market Insights */}
             <div className="glass-card p-6">
