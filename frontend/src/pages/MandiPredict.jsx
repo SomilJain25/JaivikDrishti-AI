@@ -109,9 +109,13 @@ export default function MandiPredict() {
           </button>
         </div>
         
-        {/* Results */}
         {result && (
-          <div className="space-y-6 animate-slide-up">
+          <>
+            <pre style={{ fontSize: "12px", overflow: "auto" }}>
+              {JSON.stringify(result, null, 2)}
+            </pre>
+
+            <div className="space-y-6 animate-slide-up">
             {/* Price Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="glass-card p-6 text-center border-l-4 border-blue-500">
@@ -225,8 +229,9 @@ export default function MandiPredict() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
+              </div>
+            </>
+            )}
       </div>
     </div>
   )
