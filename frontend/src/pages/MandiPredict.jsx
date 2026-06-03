@@ -11,15 +11,6 @@ import {
 } from 'lucide-react'
 import { useLanguage } from '../context/LanguageContext'
 import { predictPrice } from '../services/api'
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid
-} from "recharts";
 
 const crops = ['wheat', 'rice', 'cotton', 'sugarcane', 'potato', 'tomato', 'onion', 'soybean']
 const states = ['Punjab', 'Haryana', 'UP', 'Madhya Pradesh', 'Maharashtra', 'Gujarat', 'Karnataka', 'AP', 'Telangana', 'Bihar']
@@ -158,37 +149,44 @@ export default function MandiPredict() {
             <div className="glass-card p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-accent-500" />
-                Price Trend (6 Months)
+                Price Trend
               </h3>
 
-              {Array.isArray(result?.priceHistory) && result.priceHistory.length > 0 ? (
-                <div style={{ height: 320 }} className="w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={result.priceHistory}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                      <YAxis />
-                      <Tooltip
-                        formatter={(value) => {
-                          const n = typeof value === 'number' ? value : Number(value)
-                          const safe = Number.isFinite(n) ? n : null
-                          return [`₹${safe !== null ? safe : '-'}`, 'Price']
-                        }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="price"
-                        stroke="#16a34a"
-                        strokeWidth={4}
-                        dot={{ r: 5 }}
-                        activeDot={{ r: 8 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-10">
-                  No price history available yet.
+              {result?.predicted_days?.length > 0 && (
+                <div className="space-y-3">
+                  {result.predicted_days.map((item, index) => {
+                    const prevPrice =
+                      index > 0 ? result.predicted_days[index - 1].price : item.price
+
+                    const rising = item.price >= prevPrice
+
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <div className="font-medium">{item.date}</div>
+
+                        <div className="flex items-center gap-2">
+                          {rising ? (
+                            <ArrowUpRight className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <ArrowDownRight className="w-4 h-4 text-red-600" />
+                          )}
+
+                          <span
+                            className={
+                              rising
+                                ? "text-green-600 font-semibold"
+                                : "text-red-600 font-semibold"
+                            }
+                          >
+                            ₹{item.price}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
