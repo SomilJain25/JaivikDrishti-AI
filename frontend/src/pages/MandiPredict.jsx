@@ -110,11 +110,6 @@ export default function MandiPredict() {
         </div>
         
         {result && (
-          <>
-            <pre style={{ fontSize: "12px", overflow: "auto" }}>
-              {JSON.stringify(result, null, 2)}
-            </pre>
-
             <div className="space-y-6 animate-slide-up">
             {/* Price Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -230,7 +225,6 @@ export default function MandiPredict() {
               </div>
             </div>
               </div>
-            </>
             )}
       </div>
     </div>
