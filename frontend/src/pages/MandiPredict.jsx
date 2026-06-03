@@ -156,11 +156,11 @@ export default function MandiPredict() {
                 Price Trend
               </h3>
 
-              {result?.predicted_days?.length > 0 && (
+              {result?.priceHistory?.length > 0 && (
                 <div className="space-y-3">
-                  {result.predicted_days.map((item, index) => {
+                  {result.priceHistory.map((item, index) => {
                     const prevPrice =
-                      index > 0 ? result.predicted_days[index - 1].price : item.price
+                      index > 0 ? result.priceHistory[index - 1].price : item.price
 
                     const rising = item.price >= prevPrice
 
@@ -169,7 +169,7 @@ export default function MandiPredict() {
                         key={index}
                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                       >
-                        <div className="font-medium">{item.date}</div>
+                        <div className="font-medium">{item.month}</div>
 
                         <div className="flex items-center gap-2">
                           {rising ? (
