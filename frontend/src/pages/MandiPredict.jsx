@@ -1,13 +1,4 @@
 import { useState } from 'react'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid
-} from "recharts"
 import { 
   TrendingUp, 
   MapPin, 
