@@ -11,6 +11,15 @@ import {
 } from 'lucide-react'
 import { useLanguage } from '../context/LanguageContext'
 import { predictPrice } from '../services/api'
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid
+} from "recharts";
 
 const crops = ['wheat', 'rice', 'cotton', 'sugarcane', 'potato', 'tomato', 'onion', 'soybean']
 const states = ['Punjab', 'Haryana', 'UP', 'Madhya Pradesh', 'Maharashtra', 'Gujarat', 'Karnataka', 'AP', 'Telangana', 'Bihar']
