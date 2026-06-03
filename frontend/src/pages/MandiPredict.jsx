@@ -7,7 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid
-} from "recharts";
+} from "recharts"
 import { 
   TrendingUp, 
   MapPin, 
