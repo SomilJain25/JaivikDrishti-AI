@@ -145,57 +145,81 @@ export default function MandiPredict() {
             </div>
             
             {/* Price History Chart */}
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-accent-500" />
-                Price Trend
-              </h3>
+            {result?.priceHistory?.length > 0 && (
+              <div className="space-y-4">
+                {result.priceHistory.map((item, index) => {
+                  const prevPrice =
+                    index > 0 ? result.priceHistory[index - 1].price : item.price
 
-              {result?.priceHistory?.length > 0 && (
-                <div className="space-y-3">
-                  {result.priceHistory.map((item, index) => {
-                    const prevPrice =
-                      index > 0 ? result.priceHistory[index - 1].price : item.price
+                  const rising = item.price >= prevPrice
 
-                    const rising = item.price >= prevPrice
+                  const change =
+                    index > 0
+                      ? (((item.price - prevPrice) / prevPrice) * 100).toFixed(1)
+                      : 0
 
-                    return (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="font-medium">{item.month}</div>
+                  return (
+                    <div key={index} className="flex items-start gap-4">
 
-                        <div className="flex items-center gap-2">
+                      {/* Timeline Circle */}
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            rising ? "bg-green-100" : "bg-red-100"
+                          }`}
+                        >
                           {rising ? (
-                            <ArrowUpRight className="w-4 h-4 text-green-600" />
+                            <ArrowUpRight className="w-5 h-5 text-green-600" />
                           ) : (
-                            <ArrowDownRight className="w-4 h-4 text-red-600" />
+                            <ArrowDownRight className="w-5 h-5 text-red-600" />
                           )}
+                        </div>
 
-                          <span
-                            className={
-                              rising
-                                ? "text-green-600 font-semibold"
-                                : "text-red-600 font-semibold"
-                            }
-                          >
-                            ₹{item.price}
-                          </span>
+                        {index !== result.priceHistory.length - 1 && (
+                          <div className="w-1 h-12 bg-gray-300 mt-1"></div>
+                        )}
+                      </div>
+
+                      {/* Price Content */}
+                      <div className="flex-1 bg-gray-50 rounded-xl p-4">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="font-semibold text-gray-800">
+                              {item.month}
+                            </p>
+
+                            <p className="text-2xl font-bold text-gray-900">
+                              ₹{item.price}
+                            </p>
+                          </div>
+
+                          {index > 0 && (
+                            <div
+                              className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                rising
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {rising ? "+" : ""}
+                              {change}%
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+
+                    </div>
+                  )
+                })}
+              </div>
+            )}
             
             {/* Market Insights */}
             <div className="glass-card p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4">
                 {lang === 'en' ? 'Market Insights' : 'बाजार अंतर्दृष्टि'}
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 bg-green-50 rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
                     <ArrowUpRight className="w-5 h-5 text-green-600" />
@@ -204,9 +228,12 @@ export default function MandiPredict() {
                     </span>
                   </div>
                   <p className="text-sm text-gray-600">
-                    {lang === 'en' 
-                      ? 'Prices are expected to increase by 8.5% in the coming weeks'
-                      : 'आने वाले हफ्तों में कीमतों में 8.5% की वृद्धि की उम्मीद है'}
+                    {lang === 'en'
+                      ? `Prices may ${result.trend === 'rising' ? 'increase' : 'decrease'} by ${result.trendPercent}%`
+                      : `कीमतों में ${result.trendPercent}% ${
+                          result.trend === 'rising' ? 'वृद्धि' : 'गिरावट'
+                        } की संभावना है`
+                      }
                   </p>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-xl">
@@ -220,6 +247,24 @@ export default function MandiPredict() {
                     {lang === 'en'
                       ? 'Azadpur Mandi, Delhi offering highest prices'
                       : 'आजादपुर मंडी, दिल्ली सबसे अधिक कीमतें दे रही है'}
+                  </p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="w-5 h-5 text-green-600" />
+                    <span className="font-semibold text-green-800">
+                      {lang === 'en' ? 'Best Day To Sell' : 'बेचने का सबसे अच्छा दिन'}
+                    </span>
+                  </div>
+
+                  <p className="text-xl font-bold text-green-700">
+                    {result.bestSellMonth}
+                  </p>
+
+                  <p className="text-sm text-gray-600 mt-1">
+                    {lang === 'en'
+                      ? `Expected Price: ₹${result.predictedPrice}`
+                      : `अनुमानित कीमत: ₹${result.predictedPrice}`}
                   </p>
                 </div>
               </div>
