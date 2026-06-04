@@ -30,6 +30,9 @@ export default function MandiPredict() {
       const data = await predictPrice(crop, state)
       console.log("RESULT =", data)
       setResult(data)
+      console.log("currentPrice =", data.currentPrice)
+      console.log("predictedPrice =", data.predictedPrice)
+      console.log("priceHistory =", data.priceHistory)
     } catch (error) {
       console.error(error)
       alert('Prediction failed')

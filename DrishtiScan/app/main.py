@@ -546,11 +546,20 @@ async def mandi_predict(
     state: str = Query("Madhya Pradesh"),
     days: int = Query(7),
 ):
-    records = await fetch_mandi_prices(commodity, market, state, days)
+    records = await fetch_mandi_prices(
+        commodity, market, state, days
+    )
+
+    print("MANDI RECORDS =", records)
 
     normalized, mn, mx = preprocess_prices(records)
+
+    print("NORMALIZED =", normalized)
+
     preds = lstm_predict(normalized, days)
     predicted = denormalize(preds, mn, mx)
+
+    print("PREDICTED =", predicted)
 
     current = denormalize([normalized[-1]], mn, mx)[0]
 
