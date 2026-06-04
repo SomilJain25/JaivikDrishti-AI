@@ -169,9 +169,18 @@ class MandiPredictResponse(BaseModel):
     commodity: str
     market: str
     state: str
-    current_price: float
-    predicted_days: list[PricePoint]
+
+    currentPrice: float
+    predictedPrice: float
+
     trend: str
+    trendPercent: float
+
+    bestSellMonth: str
+    marketDemand: str
+
+    priceHistory: list
+
     confidence: float
     unit: str
     source: str
@@ -554,16 +563,40 @@ async def mandi_predict(
             )
         )
 
+    predicted_price = float(predicted[-1])
+
+    trend_percent = round(
+        ((predicted_price - float(current)) / float(current)) * 100,
+        2
+    )
+
+    price_history = []
+
+    for item in forecast:
+        price_history.append({
+            "month": item.date,
+            "price": item.price
+        })
+
     return {
         "commodity": commodity,
         "market": market,
         "state": state,
-        "current_price": float(current),
-        "predicted_days": forecast,
-        "trend": "rising",
+
+        "currentPrice": float(current),
+        "predictedPrice": predicted_price,
+
+        "trend": "rising" if trend_percent >= 0 else "falling",
+        "trendPercent": abs(trend_percent),
+
+        "bestSellMonth": "October",
+        "marketDemand": "High",
+
+        "priceHistory": price_history,
+
         "confidence": 0.83,
         "unit": "₹/quintal",
-        "source": "AGMARKNET",
+        "source": "AGMARKNET"
     }
 
 
