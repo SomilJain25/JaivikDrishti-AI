@@ -65,17 +65,16 @@ export default function KrishiBotWidget() {
       {/* Floating Button */}
       <button
         onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-red-600 text-white shadow-xl flex items-center justify-center z-50"
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-red-600 text-white shadow-xl flex items-center justify-center z-50"
       >
         {open ? <X size={30} /> : <MessageCircle size={30} />}
       </button>
 
       {/* Chat Window */}
       {open && (
-        <div className="fixed bottom-24 right-6 w-[370px] h-[550px] bg-white rounded-2xl shadow-2xl border overflow-hidden z-50 flex flex-col">
-
+        <div className="fixed bottom-20 right-4 w-[300px] h-[420px] bg-white rounded-2xl shadow-2xl border overflow-hidden z-50 flex flex-col">
           {/* Header */}
-          <div className="bg-red-700 text-white p-4 flex items-center justify-between">
+          <div className="bg-red-700 text-white px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bot />
               <h2 className="font-bold text-xl">
@@ -100,7 +99,7 @@ export default function KrishiBotWidget() {
                 }`}
               >
                 <div
-                  className={`max-w-[80%] px-4 py-3 rounded-2xl ${
+                  className={`max-w-[75%] px-3 py-2 rounded-xl text-sm ${
                     msg.role === "user"
                       ? "bg-green-600 text-white"
                       : "bg-gray-200 text-black"
@@ -113,7 +112,7 @@ export default function KrishiBotWidget() {
           </div>
 
           {/* Input */}
-          <div className="p-4 border-t flex gap-2">
+          <div className="p-3 border-t flex gap-2">
             <input
               type="text"
               placeholder="Type here..."
