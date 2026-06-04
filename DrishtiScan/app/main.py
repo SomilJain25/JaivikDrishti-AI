@@ -579,25 +579,25 @@ async def mandi_predict(
         })
 
     return {
-        "commodity": commodity,
-        "market": market,
-        "state": state,
+    "commodity": commodity,
+    "market": market,
+    "state": state,
 
-        "currentPrice": float(current),
-        "predictedPrice": predicted_price,
+    "currentPrice": float(current) if current else 0,
+    "predictedPrice": float(predicted_price) if predicted_price else 0,
 
-        "trend": "rising" if trend_percent >= 0 else "falling",
-        "trendPercent": abs(trend_percent),
+    "trend": "rising" if trend_percent >= 0 else "falling",
+    "trendPercent": abs(trend_percent) if trend_percent else 0,
 
-        "bestSellMonth": "October",
-        "marketDemand": "High",
+    "bestSellMonth": "October",
+    "marketDemand": "High",
 
-        "priceHistory": price_history,
+    "priceHistory": price_history if price_history else [],
 
-        "confidence": 0.83,
-        "unit": "₹/quintal",
-        "source": "AGMARKNET"
-    }
+    "confidence": 0.83,
+    "unit": "₹/quintal",
+    "source": "AGMARKNET"
+}
 
 
 @app.get("/markets")
