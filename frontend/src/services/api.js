@@ -143,43 +143,43 @@ export const checkHealth = async () => {
  * Get crop price prediction (still mock — no backend endpoint)
  */
 export const predictPrice = async (crop, state) => {
-  // Backend endpoint: GET /mandi/predict?commodity=...&market=...&state=...
-  // NOTE: backend expects titles (e.g., Wheat, Madhya Pradesh). We send sensible defaults.
-  const commodity = (crop || "").toString().trim();
-  const stateName = (state || "").toString().trim();
+  const commodity = (crop || "").trim();
+  const stateName = (state || "").trim();
 
   if (!commodity || !stateName) {
-    throw new Error('crop and state are required');
+    throw new Error("crop and state are required");
   }
 
-  // Your UI only captures state; backend also needs a market.
-  // Use a fixed default market; you can later replace with a state→market mapping.
-  const market = 'Indore';
+  const market = "Indore";
 
   const res = await fetch(
-    `${BASE_URL}/mandi/predict?commodity=${encodeURIComponent(commodity)}&market=${encodeURIComponent(market)}&state=${encodeURIComponent(stateName)}&days=6`
+    `${BASE_URL}/mandi/predict?commodity=${encodeURIComponent(
+      commodity
+    )}&market=${encodeURIComponent(
+      market
+    )}&state=${encodeURIComponent(stateName)}&days=6`
   );
 
   const data = await handleResponse(res);
 
-  // Map backend response to existing UI shape
-  const priceHistory = (data.predicted_days || []).map((p) => ({
-    month: p.date,
-    price: p.price,
-  }));
+  console.log("MANDI API RESPONSE =", data);
 
   return {
     success: true,
-    currentPrice: data.current_price,
-    predictedPrice: priceHistory.length ? priceHistory[priceHistory.length - 1].price : data.current_price,
-    trend: data.trend,
-    trendPercent: data.confidence != null ? Number(data.confidence) : 0,
-    bestSellMonth: priceHistory.length ? priceHistory[0].month : '',
-    marketDemand: data.source || 'AGMARKNET',
-    priceHistory,
+
+    // exact backend keys
+    currentPrice: data.currentPrice ?? 0,
+    predictedPrice: data.predictedPrice ?? 0,
+
+    trend: data.trend ?? "stable",
+    trendPercent: data.trendPercent ?? 0,
+
+    bestSellMonth: data.bestSellMonth ?? "Not Available",
+    marketDemand: data.marketDemand ?? "Medium",
+
+    priceHistory: data.priceHistory ?? [],
   };
 };
-
 /**
  * Predict crop yield (still mock — no backend endpoint)
  */
