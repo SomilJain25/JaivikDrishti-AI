@@ -88,7 +88,7 @@ export default function GovtSchemes() {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {schemes.map((scheme, idx) => {
             return (
               <a
@@ -96,34 +96,55 @@ export default function GovtSchemes() {
                 href={scheme.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group bg-white rounded-2xl p-5 shadow-md hover:shadow-xl 
-                         transition-all duration-300 border border-gray-100 hover:-translate-y-1"
+                className="
+                  group
+                  min-w-[280px]
+                  sm:min-w-[320px]
+                  lg:min-w-[340px]
+                  flex-shrink-0
+                  snap-start
+                  bg-white rounded-2xl p-5 shadow-md
+                  hover:shadow-xl transition-all
+                  duration-300 border border-gray-100
+                  hover:-translate-y-1
+                "
                 style={{ animationDelay: `${idx * 100}ms` }}
               >
-                <div className="flex items-center gap-3 mb-4">
-                <div
-                  className={`w-12 h-12 ${scheme.color} rounded-xl flex items-center justify-center 
-                  group-hover:scale-110 transition-transform flex-shrink-0 overflow-hidden`}
-                >
-                  <img
-                    src={scheme.icon}
-                    alt={scheme.title}
-                    className="w-8 h-8 object-contain"
-                  />
-                </div>
+                <div className="flex gap-4 items-start">
 
-                <h3 className="font-bold text-gray-800 group-hover:text-primary-700 transition-colors">
-                  {lang === 'en' ? scheme.title : scheme.titleHi}
-                </h3>
-              </div>
-                
-                <p className="text-sm text-gray-600 mb-4">
-                  {lang === 'en' ? scheme.desc : scheme.descHi}
-                </p>
-                
-                <div className="flex items-center text-sm font-medium text-primary-700">
-                  <span>{t.viewDetails}</span>
-                  <ExternalLink className="w-4 h-4 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  {/* Left Icon */}
+                  <div
+                    className={`w-14 h-14 ${scheme.color} rounded-2xl flex items-center justify-center
+                    group-hover:scale-110 transition-transform flex-shrink-0 overflow-hidden`}
+                  >
+                    <img
+                      src={scheme.icon}
+                      alt={scheme.title}
+                      className="w-9 h-9 object-contain"
+                    />
+                  </div>
+
+                  {/* Right Content */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-gray-800 group-hover:text-primary-700 transition-colors mb-2">
+                      {lang === 'en'
+                        ? scheme.title
+                        : scheme.titleHi}
+                    </h3>
+
+                    <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                      {lang === 'en'
+                        ? scheme.desc
+                        : scheme.descHi}
+                    </p>
+
+                    <div className="flex items-center text-sm font-medium text-primary-700">
+                      <span>{t.viewDetails}</span>
+
+                      <ExternalLink className="w-4 h-4 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+
                 </div>
               </a>
             )

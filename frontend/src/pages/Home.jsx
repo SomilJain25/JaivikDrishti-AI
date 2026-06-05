@@ -16,10 +16,7 @@ import WeatherWidget from '../components/WeatherWidget'
 import GovtSchemes from '../components/GovtSchemes'
 
 const wallpapers = [
-  new URL('../assets/wallpaper 1.webp', import.meta.url).href,
-  new URL('../assets/wallpaper 2.jpg', import.meta.url).href,
-  new URL('../assets/wallpaper 3.jpg', import.meta.url).href,
-  new URL('../assets/wallpaper 4.png', import.meta.url).href,
+  new URL('../assets/background.jpg', import.meta.url).href
 ]
 
 const clampIndex = (index) => (index + wallpapers.length) % wallpapers.length
@@ -120,38 +117,35 @@ export default function Home() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="absolute inset-0">
-          {wallpapers.map((src, index) => (
-            <div
-              key={src}
-              className={`absolute inset-0 transition-opacity duration-700 ease-out ${
-                index === currentSlide
-                  ? 'opacity-100 z-10'
-                  : 'opacity-0 z-0'
-              }`}
-              style={{
-                backgroundImage: `url(${src})`,
-                backgroundRepeat: 'no-repeat',
-              }}
-            >
-              <div
-                className="
-                  w-full h-full
-                  bg-contain sm:bg-cover
-                  bg-top md:bg-center
-                "
-                style={{
-                  backgroundImage: `url(${src})`,
-                }}
-              />
-            </div>
-          ))}
-
-  <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-slate-950/10 to-transparent backdrop-blur-sm" />
-</div>
+        <div
+          className="
+            absolute inset-0
+            bg-contain sm:bg-cover
+            bg-top md:bg-center
+            bg-no-repeat
+          "
+          style={{
+            backgroundImage: `url(${wallpapers[0]})`,
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-slate-950/10 to-transparent backdrop-blur-sm" />
+        </div>
 
         <div className="relative z-20 max-w-7xl mx-auto px-4 py-16 md:py-24">
-          <div className="relative mx-auto max-w-3xl animate-slide-up rounded-[2rem] border border-white/10 bg-white/10 p-10 shadow-2xl shadow-slate-950/10 backdrop-blur-xl">
+          <div className="
+          relative
+          mx-auto
+          w-[95%]
+          md:w-auto
+          max-w-3xl
+          animate-slide-up
+          rounded-[2rem]
+          border border-white/10
+          bg-white/10
+          p-5 md:p-10
+          shadow-2xl shadow-slate-950/10
+          backdrop-blur-xl
+          ">
             <div className="text-center">
               <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6 border border-white/20">
                 <Sprout className="w-5 h-5 text-accent-400" />
@@ -209,19 +203,32 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 mt-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left: Modules */}
-          <div className="lg:col-span-2" id="modules">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-              <Zap className="w-6 h-6 text-accent-500" />
-              {lang === 'en' ? 'AI Modules' : 'एआई मॉड्यूल'}
-            </h2>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {modules.map((module, idx) => (
-                <ModuleCard key={module.title} {...module} delay={idx * 100} />
-              ))}
+          <div className="lg:col-span-2 space-y-10" id="modules">
+
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <Zap className="w-6 h-6 text-accent-500" />
+                {lang === 'en' ? 'AI Modules' : 'एआई मॉड्यूल'}
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {modules.map((module, idx) => (
+                  <ModuleCard
+                    key={module.title}
+                    {...module}
+                    delay={idx * 100}
+                  />
+                ))}
+              </div>
             </div>
+
+            {/* Government Schemes */}
+            <div id="schemes">
+              <GovtSchemes />
+            </div>
+
           </div>
-          
+                    
           {/* Right: Sidebar */}
           <div className="space-y-6">
             <WeatherWidget />
@@ -284,11 +291,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </div>
-      
-      {/* Government Schemes */}
-      <div id="schemes">
-        <GovtSchemes />
       </div>
     </div>
   )
