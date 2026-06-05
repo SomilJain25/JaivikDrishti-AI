@@ -6,8 +6,10 @@ export default function KrishiBotWidget() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
     {
-      role: "assistant",
-      text: "Hey there 👋 How can I help you today?",
+      sender: "bot",
+      text: `Namaste! Welcome to KrishiBot.
+
+  I am your agricultural AI by KrishiDrishti AI. Ask me about crops, soil, pests, irrigation, or farming schemes.`,
     },
   ]);
 
