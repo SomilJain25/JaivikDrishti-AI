@@ -125,17 +125,30 @@ export default function Home() {
             <div
               key={src}
               className={`absolute inset-0 transition-opacity duration-700 ease-out ${
-                index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                index === currentSlide
+                  ? 'opacity-100 z-10'
+                  : 'opacity-0 z-0'
               }`}
               style={{
                 backgroundImage: `url(${src})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
               }}
-            />
+            >
+              <div
+                className="
+                  w-full h-full
+                  bg-contain sm:bg-cover
+                  bg-top md:bg-center
+                "
+                style={{
+                  backgroundImage: `url(${src})`,
+                }}
+              />
+            </div>
           ))}
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-slate-950/10 to-transparent backdrop-blur-sm" />
-        </div>
+
+  <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-slate-950/10 to-transparent backdrop-blur-sm" />
+</div>
 
         <div className="relative z-20 max-w-7xl mx-auto px-4 py-16 md:py-24">
           <div className="relative mx-auto max-w-3xl animate-slide-up rounded-[2rem] border border-white/10 bg-white/10 p-10 shadow-2xl shadow-slate-950/10 backdrop-blur-xl">
