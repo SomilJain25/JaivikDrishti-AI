@@ -16,23 +16,42 @@ export default function WeatherWidget() {
           const lat = position.coords.latitude;
           const lon = position.coords.longitude;
 
-          const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
+          const apiKey =
+            import.meta.env.VITE_OPENWEATHER_API_KEY;
+
+          console.log("API KEY:", apiKey);
 
           const res = await fetch(
             `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`
           );
-          console.log(import.meta.env.VITE_OPENWEATHER_API_KEY);
+
           const data = await res.json();
+
+          console.log("Weather API Response:", data);
+
+          // Prevent crash if API fails
+          if (data.cod !== 200) {
+            console.error(
+              "Weather API Error:",
+              data.message
+            );
+            setWeather(null);
+            return;
+          }
 
           setWeather({
             city: data.name,
             temp: Math.round(data.main.temp),
             humidity: data.main.humidity,
-            wind: Math.round(data.wind.speed * 3.6),
-            condition: data.weather[0].description,
+            wind: Math.round(
+              data.wind.speed * 3.6
+            ),
+            condition:
+              data.weather[0].description,
           });
         } catch (err) {
           console.error("Weather error:", err);
+          setWeather(null);
         } finally {
           setLoading(false);
         }
