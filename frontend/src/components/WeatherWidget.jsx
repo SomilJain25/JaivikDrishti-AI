@@ -1,97 +1,118 @@
-import { useEffect, useState } from 'react'
-import { Cloud, Sun, CloudRain, Droplets, Wind, Thermometer } from 'lucide-react'
-import { getWeather } from '../services/api'
-
-const weatherIcons = {
-  'sun': Sun,
-  'cloud': Cloud,
-  'rain': CloudRain,
-}
+import { useEffect, useState } from "react";
+import { Cloud, Droplets, Wind } from "lucide-react";
 
 export default function WeatherWidget() {
-  const [weather, setWeather] = useState(null)
-  const [loading, setLoading] = useState(true)
-  
+  const [weather, setWeather] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    loadWeather()
-  }, [])
-  
-  const loadWeather = async () => {
-    try {
-      const data = await getWeather()
-      setWeather(data)
-    } catch (error) {
-      console.error('Weather load failed:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-  
+    getWeather();
+  }, []);
+
+  const getWeather = () => {
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+
+          const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
+
+          const res = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`
+          );
+          console.log(import.meta.env.VITE_OPENWEATHER_API_KEY);
+          const data = await res.json();
+
+          setWeather({
+            city: data.name,
+            temp: Math.round(data.main.temp),
+            humidity: data.main.humidity,
+            wind: Math.round(data.wind.speed * 3.6),
+            condition: data.weather[0].description,
+          });
+        } catch (err) {
+          console.error("Weather error:", err);
+        } finally {
+          setLoading(false);
+        }
+      },
+      (error) => {
+        console.error("Location error:", error);
+        setLoading(false);
+      }
+    );
+  };
+
   if (loading) {
     return (
-      <div className="glass-card p-5 animate-pulse">
-        <div className="h-20 bg-gray-200 rounded-xl" />
+      <div className="glass-card p-5">
+        Loading weather...
       </div>
-    )
+    );
   }
-  
-  const CurrentIcon = weatherIcons[weather.forecast[0].icon] || Cloud
-  
+
+  if (!weather) {
+    return (
+      <div className="glass-card p-5">
+        Weather unavailable
+      </div>
+    );
+  }
+
   return (
-    <div className="glass-card p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-          <Cloud className="w-5 h-5 text-blue-500" />
+    <div className="glass-card p-5 rounded-3xl">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold text-gray-800">
           Weather
-        </h3>
-        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+        </h2>
+
+        <span className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
           Live
         </span>
       </div>
-      
-      {/* Current */}
-      <div className="flex items-center gap-4 mb-4">
-        <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl 
-                      flex items-center justify-center shadow-lg">
-          <CurrentIcon className="w-8 h-8 text-white" />
+
+      <div className="flex items-center gap-4 mb-5">
+        <div className="w-16 h-16 rounded-2xl bg-blue-500 flex items-center justify-center">
+          <Cloud className="text-white w-8 h-8" />
         </div>
+
         <div>
-          <div className="text-3xl font-bold text-gray-800">{weather.temp}°C</div>
-          <div className="text-sm text-gray-600">{weather.condition}</div>
+          <h3 className="text-4xl font-bold">
+            {weather.temp}°C
+          </h3>
+
+          <p className="text-gray-600 capitalize">
+            {weather.condition}
+          </p>
+
+          <p className="text-sm text-gray-500">
+            {weather.city}
+          </p>
         </div>
       </div>
-      
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-blue-50 rounded-xl p-3 flex items-center gap-2">
-          <Droplets className="w-4 h-4 text-blue-500" />
-          <div>
-            <div className="text-xs text-gray-500">Humidity</div>
-            <div className="font-semibold text-sm">{weather.humidity}%</div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-slate-100 rounded-2xl p-4">
+          <div className="flex items-center gap-2 text-blue-600 mb-1">
+            <Droplets className="w-4 h-4" />
+            Humidity
           </div>
+          <p className="font-bold">
+            {weather.humidity}%
+          </p>
         </div>
-        <div className="bg-green-50 rounded-xl p-3 flex items-center gap-2">
-          <Wind className="w-4 h-4 text-green-500" />
-          <div>
-            <div className="text-xs text-gray-500">Wind</div>
-            <div className="font-semibold text-sm">{weather.windSpeed} km/h</div>
+
+        <div className="bg-green-50 rounded-2xl p-4">
+          <div className="flex items-center gap-2 text-green-600 mb-1">
+            <Wind className="w-4 h-4" />
+            Wind
           </div>
+          <p className="font-bold">
+            {weather.wind} km/h
+          </p>
         </div>
-      </div>
-      
-      {/* Forecast */}
-      <div className="flex gap-2">
-        {weather.forecast.map((day, idx) => {
-          const DayIcon = weatherIcons[day.icon] || Cloud
-          return (
-            <div key={idx} className="flex-1 bg-gray-50 rounded-xl p-2 text-center">
-              <div className="text-xs text-gray-500 mb-1">{day.day}</div>
-              <DayIcon className="w-5 h-5 mx-auto mb-1 text-gray-600" />
-              <div className="text-sm font-semibold">{day.temp}°</div>
-            </div>
-          )
-        })}
       </div>
     </div>
-  )
+  );
 }
